@@ -13,9 +13,17 @@ callback-based API to clients.
 
 ## Quick Start
 
-Install a version of [Twisted][] appropriate for your Python installation.  For
-Windows users, choose the appropriate `.exe` installer at the Twisted website,
-and install [zope.interface][] with the same parameters.
+sllurp is developed and tested with *Python 2.7*.
+
+First, install the easy-to-satisfy Python dependencies:
+
+    pip install -r requirements.txt
+
+Then install a version of [Twisted][] appropriate for your Python installation.
+Most Linux distributions (and Mac package repositories) offer prebuilt Twisted
+packages; use one of these if you can.  For Windows users, choose the
+appropriate `.exe` installer at the Twisted website, and install
+[zope.interface][] with the same parameters.
 
 To connect to a reader and perform EPC Gen 2 inventory for 10 seconds:
 
