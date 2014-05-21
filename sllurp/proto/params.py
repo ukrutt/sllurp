@@ -2,7 +2,7 @@
 specification."""
 
 from construct import *
-from .common import *
+from .common import TLVParameterHeader, TVParameterHeader
 
 # 17.2.8.1
 LLRPStatus = Struct("LLRPStatus",
