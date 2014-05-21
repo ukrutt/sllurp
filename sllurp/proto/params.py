@@ -2,27 +2,17 @@
 specification."""
 
 from construct import *
-from .common import TLVParameterHeader, TVParameterHeader
+from .common import TLVParameterHeader, TVParameterHeader, IntRange
 
-# 17.2.8.1
-LLRPStatus = Struct("LLRPStatus",
-        TLVParameterHeader(287),
-        UBInt16("StatusCode"),
-        UBInt16("ErrorDescriptionByteCount"),
-        If(lambda ctx: ctx.ErrorDescriptionByteCount,
-            String("ErrorDescription",
-                lambda ctx: ctx.ErrorDescriptionByteCount)),
-        Optional(Struct("FieldError",
-            TLVParameterHeader(288),
-            UBInt16("FieldNum"),
-            UBInt16("ErrorCode"), # XXX Enum?
-            )),
-        Optional(Struct("ParameterError",
-            TLVParameterHeader(289),
-            UBInt16("ParameterType"),
-            UBInt16("ErrorCode"), # XXX Enum?
-            ))
-        )
+# 17.2.2.1
+UTCTimestamp = Struct("UTCTimestamp",
+        TLVParameterHeader(128),
+        UBInt64("Microseconds"))
+
+# 17.2.2.2
+Uptime = Struct("Uptime",
+        TLVParameterHeader(129),
+        UBInt64("Microseconds"))
 
 # 17.2.3.1
 GeneralDeviceCapabilities = Struct("GeneralDeviceCapabilities",
@@ -42,7 +32,7 @@ GeneralDeviceCapabilities = Struct("GeneralDeviceCapabilities",
         GreedyRange(Struct("ReceiveSensitivityTableEntry",
                 TLVParameterHeader(139),
                 UBInt16("Index"),
-                UBInt16("ReceiveSensitivityValue"))),
+                IntRange(UBInt16("ReceiveSensitivityValue"), 0, 128))),
 
         # 17.2.3.1.3
         OptionalGreedyRange(Struct("PerAntennaReceiveSensitivityRange",
@@ -80,7 +70,7 @@ LLRPCapabilities = Struct("LLRPCapabilities",
             Flag("CanDoTagInventoryStateAwareSingulation"),
             Flag("SupportsEventAndReportHolding"),
             Padding(3)),
-        UBInt8("MaxPriorityLevelSupported"),
+        IntRange(UBInt8("MaxPriorityLevelSupported"), 0, 7),
         UBInt16("ClientRequestOpSpecTimeout"),
         UBInt32("MaxNumROSpecs"),
         UBInt32("MaxNumSpecsPerROSpec"),
@@ -95,7 +85,7 @@ UHFBandCapabilities = Struct("UHFBandCapabilities",
         # 17.2.3.4.1.1
         GreedyRange(Struct("TransmitPowerLevelTableEntry",
                 TLVParameterHeader(145),
-                UBInt16("Index"),
+                IntRange(UBInt16("Index"), 0, 255),
                 UBInt16("TransmitPowerValue"))),
 
         # 17.2.3.4.1.2
@@ -129,17 +119,40 @@ UHFBandCapabilities = Struct("UHFBandCapabilities",
                             TLVParameterHeader(329),
                             UBInt32("ModeIdentifier"),
                             EmbeddedBitStruct(
-                                Flag("DR"),
+                                Flag("DivideRatio"),
+                                Alias("DR", "DivideRatio"),
                                 Flag("EPCHAGT&CConformance"),
                                 Padding(6)),
-                            UBInt8("Mod"),
-                            UBInt8("FLM"),
-                            UBInt8("M"),
-                            UBInt32("BDR"),
-                            UBInt32("PIE"),
-                            UBInt32("MinTari"),
-                            UBInt32("MaxTari"),
-                            UBInt32("StepTari"))))),
+
+                            Enum(UBInt8("Modulation"),
+                                FM0 = 0,
+                                Miller2 = 1,
+                                Miller4 = 2,
+                                Miller8 = 3),
+                            Alias("Mod", "Modulation"),
+
+                            Enum(UBInt8("ForwardLinkModulation"),
+                                PR_ASK = 0,
+                                SSB_ASK = 1,
+                                DSB_ASK = 2),
+                            Alias("FLM", "ForwardLinkModulation"),
+
+                            Enum(UBInt8("SpectralMaskIndicator"),
+                                    Unknown = 0,
+                                    SingleInterrogator = 1,
+                                    MultiInterrogator = 2,
+                                    DenseInterrogator = 3),
+                            Alias("M", "SpectralMaskIndicator"),
+
+                            IntRange(UBInt32("BackscatterDataRate"),
+                                40e3, 640e3),
+                            Alias("BDR", "BackscatterDataRate"),
+
+                            IntRange(UBInt32("PIE"), 1500, 2000),
+                            IntRange(UBInt32("MinTari"), 6250, 25000),
+                            IntRange(UBInt32("MaxTari"), 6250, 25000),
+                            IntRange(UBInt32("StepTari"), 0, 18750)
+                            )))),
 
         # 17.2.3.4.1.3
         Optional(Struct("RFSurveyFrequencyCapabilities",
@@ -155,6 +168,26 @@ RegulatoryCapabilities = Struct("RegulatoryCapabilities",
         UBInt16("CommunicationsStandard"),
         Optional(UHFBandCapabilities),
         # XXX OptionalGreedyRange(CustomParameter)
+        )
+
+# 17.2.8.1
+LLRPStatus = Struct("LLRPStatus",
+        TLVParameterHeader(287),
+        UBInt16("StatusCode"),
+        UBInt16("ErrorDescriptionByteCount"),
+        If(lambda ctx: ctx.ErrorDescriptionByteCount,
+            String("ErrorDescription",
+                lambda ctx: ctx.ErrorDescriptionByteCount)),
+        Optional(Struct("FieldError",
+            TLVParameterHeader(288),
+            UBInt16("FieldNum"),
+            UBInt16("ErrorCode"), # XXX Enum?
+            )),
+        Optional(Struct("ParameterError",
+            TLVParameterHeader(289),
+            UBInt16("ParameterType"),
+            UBInt16("ErrorCode"), # XXX Enum?
+            ))
         )
 
 # 17.3
