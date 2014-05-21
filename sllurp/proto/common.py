@@ -2,6 +2,14 @@
 
 from construct import *
 
+class IntRange (Validator):
+    def __init__ (self, subcon, _min, _max):
+        Validator.__init__(self, subcon)
+        self._min = _min
+        self._max = _max
+    def _validate (self, obj, context):
+        return (obj >= self._min and obj <= self._max)
+
 # 17.1
 def MessageHeader (msgType):
     assert msgType > 0
