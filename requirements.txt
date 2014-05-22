@@ -1,2 +1,2 @@
-construct==2.5.1
-six==1.6.1
+construct
+six
