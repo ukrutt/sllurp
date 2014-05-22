@@ -40,3 +40,40 @@ def TVParameterHeader (paramType):
     return BitStruct("TVParameterHeader",
             Const(Bit("TV"), 1),
             Const(BitField("Type", 7), paramType))
+
+# 15.2.1
+StatusCode = Enum(UBInt16("StatusCode"),
+        M_Success = 0,
+        M_ParameterError = 100,
+        M_FieldError = 101,
+        M_UnexpectedParameter = 102,
+        M_MissingParameter = 103,
+        M_DuplicateParameter = 104,
+        M_OverflowParameter = 105,
+        M_OverflowField = 106,
+        M_UnknownParameter = 107,
+        M_UnknownField = 108,
+        M_UnsupportedMessage = 109,
+        M_UnsupportedVersion = 110,
+        M_UnsupportedParameter = 111,
+        M_UnexpectedMessage = 112,
+        P_ParameterError = 200,
+        P_FieldError = 201,
+        P_UnexpectedParameter = 202,
+        P_MissingParameter = 203,
+        P_DuplicateParameter = 204,
+        P_OverflowParameter = 205,
+        P_OverflowField = 206,
+        P_UnknownParameter = 207,
+        P_UnknownField = 208,
+        P_UnsupportedParameter = 209,
+        A_Invalid = 300,
+        A_OutOfRange = 301,
+        R_DeviceError = 401)
+
+# 7.1.4 Table 4
+AirProtocol = Enum(UBInt8("ProtocolID"),
+        Unspecified = 0,
+        EPCGlobalC1G2 = 1,
+        # 2-255 for future use
+        )
