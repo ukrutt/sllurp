@@ -778,7 +778,7 @@ AntennaID = Struct("AntennaID",
 # 17.2.7.3.7
 PeakRSSI = Struct("PeakRSSI",
         TVParameterHeader(6),
-        UBInt8("PeakRSSI"))
+        SBInt8("PeakRSSI"))
 
 # 17.2.7.3.8
 ChannelIndex = Struct("ChannelIndex",
@@ -825,8 +825,8 @@ FrequencyRSSILevelEntry = Struct("FrequencyRSSILevelEntry",
         TLVParameterHeader(243),
         UBInt32("Frequency"),
         UBInt32("Bandwidth"),
-        UBInt8("AverageRSSI"),
-        UBInt8("PeakRSSI"),
+        SBInt8("AverageRSSI"),
+        SBInt8("PeakRSSI"),
         Union("Timestamp",
             UTCTimestamp,
             UTCTimestamp,
