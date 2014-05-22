@@ -187,7 +187,7 @@ PeriodicTriggerValue = Struct("PeriodicTriggerValue",
 # 17.2.4.1.1.1.2
 GPITriggerValue = Struct("GPITriggerValue",
         TLVParameterHeader(181),
-        IntRange(UBInt16("GPIPortNum"), 0, 65535),
+        UBInt16("GPIPortNumber"),
         EmbeddedBitStruct(
             Flag("GPIEvent"),
             Alias("E", "GPIEvent"),
@@ -264,6 +264,27 @@ RFTransmitterSettings = Struct("RFTransmitterSettings",
         UBInt16("ChannelIndex"),
         UBInt16("TransmitPower"))
 
+# 17.2.6.9
+GPIPortCurrentState = Struct("GPIPortCurrentState",
+        TLVParameterHeader(225),
+        UBInt16("GPIPortNumber"),
+        EmbeddedBitStruct(
+            Flag("GPIConfig"),
+            Alias("C", "GPIConfig"),
+            Padding(7)),
+        Enum(UBInt8("GPIState"),
+            Low = 0,
+            High = 1,
+            Unknown = 2))
+
+# 17.2.6.10
+EventsAndReports = Struct("EventsAndReports",
+        TLVParameterHeader(226),
+        EmbeddedBitStruct(
+            Flag("HoldEventsAndReportsUponReconnect"),
+            Alias("H", "HoldEventsAndReportsUponReconnect"),
+            Padding(7)))
+
 # 17.3.1.2.1.1.1
 C1G2TagInventoryMask = Struct("C1G2TagInventoryMask",
         TLVParameterHeader(332),
@@ -336,6 +357,16 @@ C1G2InventoryCommand = Struct("C1G2InventoryCommand",
         Optional(C1G2SingulationControl),
         # XXX OptionalGreedyRange(CustomParameter)
         )
+
+# 17.2.6.5
+AntennaProperties = Struct("AntennaProperties",
+        TLVParameterHeader(221),
+        EmbeddedBitStruct(
+            Flag("Connected"),
+            Alias("C", "Connected"),
+            Padding(7)),
+        UBInt16("AntennaID"),
+        SBInt16("AntennaGain"))
 
 # 17.2.6.6
 AntennaConfiguration = Struct("AntennaConfiguration",
@@ -675,6 +706,37 @@ AccessCommand = Struct("AccessCommand",
         # XXX OptionalGreedyRange(CustomParameter)
         )
 
+# 17.2.6.1
+LLRPConfigurationStateValue = Struct("LLRPConfigurationStateValue",
+        TLVParameterHeader(217),
+        UBInt32("LLRPConfigurationStateValue"))
+
+# 17.2.6.2
+Identification = Struct("Identification",
+        TLVParameterHeader(218),
+        Enum(UBInt8("IDType"),
+            MACAddress = 0,
+            EPC = 1),
+        UBInt16("ByteCount"),
+        MetaField("ReaderID", lambda ctx: ctx.ByteCount))
+
+# 17.2.6.3
+GPOWriteData = Struct("GPOWriteData",
+        TLVParameterHeader(219),
+        UBInt16("GPOPortNumber"),
+        EmbeddedBitStruct(
+            Flag("GPOData"),
+            Alias("W", "GPOData"),
+            Padding(7)))
+
+# 17.2.6.4
+KeepaliveSpec = Struct("KeepaliveSpec",
+        TLVParameterHeader(220),
+        Enum(UBInt8("KeepaliveTriggerType"),
+            Null = 0,
+            Periodic = 1),
+        UBInt32("TimeInterval"))
+
 # 17.2.7.2
 AccessReportSpec = Struct("AccessReportSpec",
         TLVParameterHeader(239),
@@ -776,6 +838,157 @@ RFSurveyReportData = Struct("RFSurveyReportData",
         Optional(ROSpecID),
         Optional(SpecIndex),
         GreedyRange(FrequencyRSSILevelEntry),
+        # XXX OptionalGreedyRange(CustomParameter)
+        )
+
+# 17.2.7.5.1
+EventNotificationState = Struct("EventNotificationState",
+        TLVParameterHeader(245),
+        Enum(UBInt16("EventType"),
+            HoppedToNextChannel = 0,
+            GPIEvent = 1,
+            ROSpecEvent = 2,
+            ReportBufferFillWarning = 3,
+            ReaderExceptionEvent = 4,
+            RFSurveyEvent = 5,
+            AISpecEvent = 6,
+            AISpecEventWithSingulationDetails = 7,
+            AntennaEvent = 8,
+            SpecLoopEvent = 9),
+        EmbeddedBitStruct(
+            Flag("NotificationState"),
+            Alias("S", "NotificationState"),
+            Padding(7)))
+
+# 17.2.7.5
+ReaderEventNotificationSpec = Struct("ReaderEventNotificationSpec",
+        TLVParameterHeader(244),
+        GreedyRange(EventNotificationState))
+
+# 17.2.7.6.1
+HoppingEvent = Struct("HoppingEvent",
+        TLVParameterHeader(247),
+        UBInt16("HopTableID"),
+        UBInt16("NextChannelIndex"))
+
+# 17.2.7.6.2
+GPIEvent = Struct("GPIEvent",
+        TLVParameterHeader(248),
+        UBInt16("GPIPortNumber"),
+        EmbeddedBitStruct(
+            Flag("GPIEvent"),
+            Alias("E", "GPIEvent"),
+            Padding(7)))
+
+# 17.2.7.6.3
+ROSpecEvent = Struct("ROSpecEvent",
+        TLVParameterHeader(249),
+        Enum(UBInt8("EventType"),
+            StartOfROSpec = 0,
+            EndOfROSpec = 1,
+            PreemptionOfROSpec = 2),
+        UBInt32("ROSpecID"),
+        UBInt32("PreemptingROSpecID"))
+
+# 17.2.7.6.4
+ReportBufferLevelWarningEvent = Struct("ReportBufferLevelWarningEvent",
+        TLVParameterHeader(250),
+        IntRange(UBInt8("ReportBufferPercentageFull"), 0, 100))
+
+# 17.2.7.6.5
+ReportBufferOverflowErrorEvent = Struct("ReportBufferOverflowErrorEvent",
+        TLVParameterHeader(251))
+
+# 17.2.7.6.6.1
+OpSpecID = Struct("OpSpecID",
+        TVParameterHeader(17),
+        UBInt16("OpSpecID"))
+
+# 17.2.7.6.6
+ReaderExceptionEvent = Struct("ReaderExceptionEvent",
+        TLVParameterHeader(252),
+        UBInt16("MessageStringByteCount"),
+        MetaField("Message", lambda ctx: ctx.MessageStringByteCount),
+        Optional(ROSpecID),
+        Optional(SpecIndex),
+        Optional(InventoryParameterSpecID),
+        Optional(AntennaID),
+        Optional(AccessSpecID),
+        Optional(OpSpecID),
+        # XXX OptionalGreedyRange(CustomParameter)
+        )
+
+# 17.2.7.6.7
+RFSurveyEvent = Struct("RFSurveyEvent",
+        TLVParameterHeader(253),
+        Enum(UBInt8("EventType"),
+            StartOfRFSurvey = 0,
+            EndOfRFSurvey = 1),
+        UBInt32("ROSpecID"),
+        UBInt16("SpecIndex"))
+
+# 17.3.1.5.6
+C1G2SingulationDetails = Struct("C1G2SingulationDetails",
+        TVParameterHeader(18),
+        UBInt16("NumCollisionSlots"),
+        UBInt16("NumEmptySlots"))
+
+# 17.2.7.6.8
+AISpecEvent = Struct("AISpecEvent",
+        TLVParameterHeader(254),
+        Enum(UBInt8("EventType"),
+            EndOfAISpec = 0),
+        UBInt32("ROSpecID"),
+        UBInt16("SpecIndex"),
+        Optional(C1G2SingulationDetails))
+
+# 17.2.7.6.9
+AntennaEvent = Struct("AntennaEvent",
+        TLVParameterHeader(255),
+        Enum(UBInt8("EventType"),
+            AntennaDisconnected = 0,
+            AntennaConnected = 1),
+        UBInt16("AntennaID"))
+
+# 17.2.7.6.10
+ConnectionAttemptEvent = Struct("ConnectionAttemptEvent",
+        TLVParameterHeader(256),
+        Enum(UBInt16("Status"),
+            Success = 0,
+            Failed_ReaderConnectionAlreadyExists = 1,
+            Failed_ClientConnectionAlreadyExists = 2,
+            Failed_OtherReason = 3,
+            AnotherConnectionAttempted = 4))
+
+# 17.2.7.6.11
+ConnectionCloseEvent = Struct("ConnectionCloseEvent",
+        TLVParameterHeader(257))
+
+# 17.2.7.6.12
+SpecLoopEvent = Struct("SpecLoopEvent",
+        TLVParameterHeader(356),
+        UBInt32("ROSpecID"),
+        UBInt32("LoopCount"))
+
+# 17.2.7.6
+ReaderEventNotificationData = Struct("ReaderEventNotificationData",
+        TLVParameterHeader(246),
+        Union("Timestamp",
+            UTCTimestamp,
+            UTCTimestamp,
+            Uptime),
+        Optional(HoppingEvent),
+        Optional(GPIEvent),
+        Optional(ROSpecEvent),
+        Optional(ReportBufferLevelWarningEvent),
+        Optional(ReportBufferOverflowErrorEvent),
+        Optional(ReaderExceptionEvent),
+        Optional(RFSurveyEvent),
+        Optional(AISpecEvent),
+        Optional(AntennaEvent),
+        Optional(ConnectionAttemptEvent),
+        Optional(ConnectionCloseEvent),
+        Optional(SpecLoopEvent),
         # XXX OptionalGreedyRange(CustomParameter)
         )
 
