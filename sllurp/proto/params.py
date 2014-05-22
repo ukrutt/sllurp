@@ -758,6 +758,27 @@ AccessSpecID = Struct("AccessSpecID",
         TVParameterHeader(16),
         UBInt32("AccessSpecID"))
 
+# 17.2.7.4.1
+FrequencyRSSILevelEntry = Struct("FrequencyRSSILevelEntry",
+        TLVParameterHeader(243),
+        UBInt32("Frequency"),
+        UBInt32("Bandwidth"),
+        UBInt8("AverageRSSI"),
+        UBInt8("PeakRSSI"),
+        Union("Timestamp",
+            UTCTimestamp,
+            UTCTimestamp,
+            Uptime))
+
+# 17.2.7.4
+RFSurveyReportData = Struct("RFSurveyReportData",
+        TLVParameterHeader(242),
+        Optional(ROSpecID),
+        Optional(SpecIndex),
+        GreedyRange(FrequencyRSSILevelEntry),
+        # XXX OptionalGreedyRange(CustomParameter)
+        )
+
 # 17.3.1.5.7.1
 C1G2ReadOpSpecResult = Struct("C1G2ReadOpSpecResult",
         TLVParameterHeader(349),
