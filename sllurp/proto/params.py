@@ -639,24 +639,39 @@ ClientRequestOpSpec = Struct("ClientRequestOpSpec",
         TLVParameterHeader(210),
         UBInt16("OpSpecID"))
 
+OpSpec = Struct("OpSpec",
+        Peek(Enum(UBInt16("TLVType"),
+                C1G2Read                 = 349,
+                C1G2Write                = 350,
+                C1G2Kill                 = 351,
+                C1G2Recommission         = 360,
+                C1G2Lock                 = 352,
+                C1G2BlockErase           = 353,
+                C1G2BlockWrite           = 354,
+                C1G2BlockPermalock       = 361,
+                C1G2BlockPermalockStatus = 362,
+                ClientRequest            = 210,
+                )),
+        Switch("OpSpec",
+            lambda ctx: ctx.TLVType, {
+            "C1G2Read":                 C1G2Read,
+            "C1G2Write":                C1G2Write,
+            "C1G2Kill":                 C1G2Kill,
+            "C1G2Recommission":         C1G2Recommission,
+            "C1G2Lock":                 C1G2Lock,
+            "C1G2BlockErase":           C1G2BlockErase,
+            "C1G2BlockWrite":           C1G2BlockWrite,
+            "C1G2BlockPermalock":       C1G2BlockPermalock,
+            "C1G2BlockPermalockStatus": C1G2BlockPermalockStatus,
+            "ClientRequestOpSpec":      ClientRequestOpSpec,
+            })
+        )
+
 # 17.2.5.1.2
 AccessCommand = Struct("AccessCommand",
         TLVParameterHeader(209),
         C1G2TagSpec,
-
-        Union("C1G2OpSpec",
-            # XXX default for Union?
-            OptionalGreedyRange(C1G2Read),
-            OptionalGreedyRange(C1G2Write),
-            OptionalGreedyRange(C1G2Kill),
-            OptionalGreedyRange(C1G2Recommission),
-            OptionalGreedyRange(C1G2Lock),
-            OptionalGreedyRange(C1G2BlockErase),
-            OptionalGreedyRange(C1G2BlockWrite),
-            OptionalGreedyRange(C1G2BlockPermalock),
-            OptionalGreedyRange(C1G2BlockPermalockStatus)),
-
-        OptionalGreedyRange(ClientRequestOpSpec),
+        OptionalGreedyRange(OpSpec),
         # XXX OptionalGreedyRange(CustomParameter)
         )
 
@@ -898,6 +913,14 @@ OpSpecResult = Struct("OpSpecResult",
             "ClientRequestOpSpecResult":      ClientRequestOpSpecResult,
             })
         )
+
+# 17.2.5.1.3.1
+ClientRequestResponse = Struct("ClientRequestResponse",
+        TLVParameterHeader(211),
+        UBInt32("AccessSpecID"),
+        Peek(UBInt8("EPCType")),
+        IfThenElse("EPC", lambda ctx: ctx.EPCType == 0x8d, EPC96, EPCData),
+        OpSpec)
 
 # 17.2.7.3
 TagReportData = Struct("TagReportData",
