@@ -500,35 +500,443 @@ C1G2LLRPCapabilities = Struct("C1G2LLRPCapabilities",
             Padding(2)),
         UBInt16("MaxNumSelectFiltersPerQuery"))
 
-# 17.3.1.3.1
-C1G2TagSpec = None
-
 # 17.3.1.3.1.1
-C1G2TargetTag = None
+C1G2TargetTag = Struct("C1G2TargetTag",
+        TLVParameterHeader(339),
+        EmbeddedBitStruct(
+            BitField("MemoryBank", 2),
+            Alias("MB", "MemoryBank"),
+            Flag("Match"),
+            Alias("M", "Match"),
+            Padding(5)),
+        UBInt16("Pointer"),
+        UBInt16("MaskBitCount"),
+        MetaField("TagMask", lambda ctx: ctx.MaskBitCount / 8),
+        UBInt16("DataBitCount"),
+        MetaField("TagData", lambda ctx: ctx.DataBitCount / 8))
 
 # 17.3.1.3.2.1
-C1G2Read = None
+C1G2Read = Struct("C1G2Read",
+        TLVParameterHeader(341),
+        UBInt16("OpSpecID"),
+        UBInt32("AccessPassword"),
+        EmbeddedBitStruct(
+            BitField("MemoryBank", 2),
+            Alias("MB", "MemoryBank"),
+            Padding(6)),
+        UBInt16("WordPointer"),
+        UBInt16("WordCount"))
 
 # 17.3.1.3.2.2
-C1G2Write = None
+C1G2Write = Struct("C1G2Write",
+        TLVParameterHeader(342),
+        UBInt16("OpSpecID"),
+        UBInt32("AccessPassword"),
+        EmbeddedBitStruct(
+            BitField("MemoryBank", 2),
+            Alias("MB", "MemoryBank"),
+            Padding(6)),
+        UBInt16("WordPointer"),
+        UBInt16("WriteDataWordCount"),
+        MetaField("WriteData", lambda ctx: ctx.WriteDataWordCount * 2))
 
 # 17.3.1.3.2.3
-C1G2Kill = None
+C1G2Kill = Struct("C1G2Kill",
+        TLVParameterHeader(343),
+        UBInt16("OpSpecID"),
+        UBInt32("KillPassword"))
 
 # 17.3.1.3.2.4
-C1G2Recommission = None
+C1G2Recommission = Struct("C1G2Recommission",
+        TLVParameterHeader(357),
+        UBInt16("OpSpecID"),
+        UBInt32("KillPassword"),
+        EmbeddedBitStruct(
+            Padding(5),
+            Flag("3SB"),
+            Flag("2SB"),
+            Flag("LSB")))
+
+# 17.3.1.3.2.5.1
+C1G2LockPayload = Struct("C1G2LockPayload",
+        TLVParameterHeader(345),
+        UBInt8("Privilege"), # XXX
+        UBInt8("DataField"))
 
 # 17.3.1.3.2.5
-C1G2Lock = None
+C1G2Lock = Struct("C1G2Lock",
+        TLVParameterHeader(344),
+        UBInt16("OpSpecID"),
+        UBInt32("AccessPassword"),
+        GreedyRange(C1G2LockPayload))
 
 # 17.3.1.3.2.6
-C1G2BlockErase = None
+C1G2BlockErase = Struct("C1G2BlockErase",
+        TLVParameterHeader(346),
+        UBInt16("OpSpecID"),
+        UBInt32("AccessPassword"),
+        EmbeddedBitStruct(
+            BitField("MemoryBank", 2),
+            Alias("MB", "MemoryBank"),
+            Padding(6)),
+        UBInt16("WordPointer"),
+        UBInt16("WordCount"))
 
 # 17.3.1.3.2.7
-C1G2BlockWrite = None
+C1G2BlockWrite = Struct("C1G2BlockWrite",
+        TLVParameterHeader(347),
+        UBInt16("OpSpecID"),
+        UBInt32("AccessPassword"),
+        EmbeddedBitStruct(
+            BitField("MemoryBank", 2),
+            Alias("MB", "MemoryBank"),
+            Padding(6)),
+        UBInt16("WordPointer"),
+        UBInt16("WriteDataWordCount"),
+        MetaField("WriteData", lambda ctx: ctx.WriteDataWordCount * 2))
 
 # 17.3.1.3.2.8
-C1G2BlockPermalock = None
+C1G2BlockPermalock = Struct("C1G2BlockPermalock",
+        TLVParameterHeader(358),
+        UBInt16("OpSpecID"),
+        UBInt32("AccessPassword"),
+        EmbeddedBitStruct(
+            BitField("MemoryBank", 2),
+            Alias("MB", "MemoryBank"),
+            Padding(6)),
+        UBInt16("BlockPointer"),
+        UBInt16("BlockMaskWordCount"),
+        MetaField("BlockMask", lambda ctx: ctx.WriteDataWordCount * 2))
 
 # 17.3.1.3.2.9
-C1G2BlockPermalockStatus = None
+C1G2BlockPermalockStatus = Struct("C1G2BlockPermalockStatus",
+        TLVParameterHeader(359),
+        UBInt16("OpSpecID"),
+        UBInt32("AccessPassword"),
+        EmbeddedBitStruct(
+            BitField("MemoryBank", 2),
+            Alias("MB", "MemoryBank"),
+            Padding(6)),
+        UBInt16("BlockPointer"),
+        UBInt16("BlockRange"))
+
+# 17.3.1.3.1
+C1G2TagSpec = Struct("C1G2TagSpec",
+        TLVParameterHeader(338),
+        C1G2TargetTag,
+        Optional(C1G2TargetTag))
+
+# 17.2.5.1.1
+AccessSpecStopTrigger = Struct("AccessSpecStopTrigger",
+        TLVParameterHeader(208),
+        Enum(UBInt8("AccessSpecStopTriggerType"),
+            Null = 0,
+            OperationCount = 1),
+        UBInt16("OperationCountValue"))
+
+# 17.2.5.1.3
+ClientRequestOpSpec = Struct("ClientRequestOpSpec",
+        TLVParameterHeader(210),
+        UBInt16("OpSpecID"))
+
+# 17.2.5.1.2
+AccessCommand = Struct("AccessCommand",
+        TLVParameterHeader(209),
+        C1G2TagSpec,
+
+        Union("C1G2OpSpec",
+            # XXX default for Union?
+            OptionalGreedyRange(C1G2Read),
+            OptionalGreedyRange(C1G2Write),
+            OptionalGreedyRange(C1G2Kill),
+            OptionalGreedyRange(C1G2Recommission),
+            OptionalGreedyRange(C1G2Lock),
+            OptionalGreedyRange(C1G2BlockErase),
+            OptionalGreedyRange(C1G2BlockWrite),
+            OptionalGreedyRange(C1G2BlockPermalock),
+            OptionalGreedyRange(C1G2BlockPermalockStatus)),
+
+        OptionalGreedyRange(ClientRequestOpSpec),
+        # XXX OptionalGreedyRange(CustomParameter)
+        )
+
+# 17.2.7.2
+AccessReportSpec = Struct("AccessReportSpec",
+        TLVParameterHeader(239),
+        Enum(UBInt8("AccessReportTrigger"),
+            ROReport = 0,
+            EndOfAccessSpec = 1))
+
+# 17.2.7.3.1
+EPCData = Struct("EPCData",
+        TLVParameterHeader(241),
+        UBInt16("EPCLengthBits"),
+        MetaField("EPC", lambda ctx: ctx.EPCLengthBits / 8))
+
+# 17.2.7.3.2
+EPC96 = Struct("EPC96",
+        TVParameterHeader(13),
+        StaticField("EPC", 96/8))
+
+# 17.2.7.3.3
+ROSpecID = Struct("ROSpecID",
+        TVParameterHeader(9),
+        UBInt32("ROSpecID"))
+
+# 17.2.7.3.4
+SpecIndex = Struct("SpecIndex",
+        TVParameterHeader(14),
+        UBInt16("SpecIndex"))
+
+# 17.2.7.3.5
+InventoryParameterSpecID = Struct("InventoryParameterSpecID",
+        TVParameterHeader(10),
+        UBInt16("InventoryParameterSpecID"))
+
+# 17.2.7.3.6
+AntennaID = Struct("AntennaID",
+        TVParameterHeader(1),
+        UBInt16("AntennaID"))
+
+# 17.2.7.3.7
+PeakRSSI = Struct("PeakRSSI",
+        TVParameterHeader(6),
+        UBInt8("PeakRSSI"))
+
+# 17.2.7.3.8
+ChannelIndex = Struct("ChannelIndex",
+        TVParameterHeader(7),
+        UBInt16("ChannelIndex"))
+
+# 17.2.7.3.9
+FirstSeenTimestampUTC = Struct("FirstSeenTimestampUTC",
+        TVParameterHeader(2),
+        UBInt64("Microseconds"))
+
+# 17.2.7.3.10
+FirstSeenTimestampUptime = Struct("FirstSeenTimestampUptime",
+        TVParameterHeader(3),
+        UBInt64("Microseconds"))
+
+# 17.2.7.3.11
+LastSeenTimestampUTC = Struct("LastSeenTimestampUTC",
+        TVParameterHeader(4),
+        UBInt64("Microseconds"))
+
+# 17.2.7.3.12
+LastSeenTimestampUptime = Struct("LastSeenTimestampUptime",
+        TVParameterHeader(5),
+        UBInt64("Microseconds"))
+
+# 17.2.7.3.13
+TagSeenCount = Struct("TagSeenCount",
+        TVParameterHeader(8),
+        UBInt16("TagCount"))
+
+# 17.2.7.3.14
+ClientRequestOpSpecResult = Struct("ClientRequestOpSpecResult",
+        TVParameterHeader(15),
+        UBInt16("OpSpecID"))
+
+# 17.2.7.3.15
+AccessSpecID = Struct("AccessSpecID",
+        TVParameterHeader(16),
+        UBInt32("AccessSpecID"))
+
+# 17.3.1.5.7.1
+C1G2ReadOpSpecResult = Struct("C1G2ReadOpSpecResult",
+        TLVParameterHeader(349),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            NonSpecificTagError = 1,
+            NoResponseFromTag = 2,
+            NonSpecificReaderError = 3,
+            MemoryOverrunError = 4,
+            MemoryLockedError = 5,
+            IncorrectPasswordError = 6),
+        UBInt16("OpSpecID"),
+        UBInt16("ReadDataWordCount"),
+        MetaField("ReadData", lambda ctx: ctx.ReadDataWordCount * 2))
+
+# 17.3.1.5.7.2
+C1G2WriteOpSpecResult = Struct("C1G2WriteOpSpecResult",
+        TLVParameterHeader(350),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            TagMemoryOverrunError = 1,
+            TagMemoryLockedError = 2,
+            InsufficientPower = 3,
+            NonSpecificTagError = 4,
+            NoResponseFromTag = 5,
+            NonSpecificReaderError = 6,
+            IncorrectPasswordError = 7),
+        UBInt16("OpSpecID"),
+        UBInt16("NumWordsWritten"))
+
+# 17.3.1.5.7.3
+C1G2KillOpSpecResult = Struct("C1G2KillOpSpecResult",
+        TLVParameterHeader(351),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            ZeroKillPasswordError = 1,
+            InsufficientPower = 2,
+            NonSpecificTagError = 3,
+            NoResponseFromTag = 4,
+            NonSpecificReaderError = 5,
+            IncorrectPasswordError = 6),
+        UBInt16("OpSpecID"))
+
+# 17.3.1.5.7.4
+C1G2RecommissionOpSpecResult = Struct("C1G2RecommissionOpSpecResult",
+        TLVParameterHeader(360),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            InsufficientPower = 1,
+            NonSpecificTagError = 2,
+            NoResponseFromTag = 3,
+            NonSpecificReaderError = 4,
+            IncorrectPasswordError = 5,
+            TagMemoryOverrunError = 6,
+            TagMemoryLockedError = 7),
+        UBInt16("OpSpecID"))
+
+# 17.3.1.5.7.5
+C1G2LockOpSpecResult = Struct("C1G2LockOpSpecResult",
+        TLVParameterHeader(360),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            ZeroKillPasswordError = 1,
+            InsufficientPower = 2,
+            NonSpecificTagError = 3,
+            NoResponseFromTag = 4,
+            NonSpecificReaderError = 5,
+            IncorrectPasswordError = 6),
+        UBInt16("OpSpecID"))
+
+# 17.3.1.5.7.6
+C1G2BlockEraseOpSpecResult = Struct("C1G2BlockEraseOpSpecResult",
+        TLVParameterHeader(353),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            TagMemoryOverrunError = 1,
+            TagMemoryLockedError = 2,
+            InsufficientPower = 3,
+            NonSpecificTagError = 4,
+            NoResponseFromTag = 5,
+            NonSpecificReaderError = 6,
+            IncorrectPasswordError = 7),
+        UBInt16("OpSpecID"))
+
+# 17.3.1.5.7.7
+C1G2BlockWriteOpSpecResult = Struct("C1G2BlockWriteOpSpecResult",
+        TLVParameterHeader(354),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            TagMemoryOverrunError = 1,
+            TagMemoryLockedError = 2,
+            InsufficientPower = 3,
+            NonSpecificTagError = 4,
+            NoResponseFromTag = 5,
+            NonSpecificReaderError = 6,
+            IncorrectPasswordError = 7),
+        UBInt16("OpSpecID"),
+        UBInt16("NumWordsWritten"))
+
+# 17.3.1.5.7.8
+C1G2BlockPermalockOpSpecResult = Struct("C1G2BlockPermalockOpSpecResult",
+        TLVParameterHeader(361),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            InsufficientPower = 1,
+            NonSpecificTagError = 2,
+            NoResponseFromTag = 3,
+            NonSpecificReaderError = 4,
+            IncorrectPasswordError = 5,
+            TagMemoryOverrunError = 6),
+        UBInt16("OpSpecID"))
+
+# 17.3.1.5.7.9
+C1G2BlockPermalockStatusOpSpecResult = \
+    Struct("C1G2BlockPermalockStatusOpSpecResult",
+        TLVParameterHeader(362),
+        Enum(UBInt8("Result"),
+            Success = 0,
+            NonSpecificTagError = 1,
+            NoResponseFromTag = 2,
+            NonSpecificReaderError = 3,
+            IncorrectPasswordError = 4,
+            TagMemoryOverrunError = 5),
+        UBInt16("OpSpecID"),
+        UBInt16("StatusWordCount"),
+        MetaField("PermalockStatus", lambda ctx: ctx.StatusWordCount * 2))
+
+OpSpecResult = Struct("OpSpecResult",
+        Peek(Enum(UBInt16("TLVType"),
+                C1G2ReadOpSpecResult                 = 349,
+                C1G2WriteOpSpecResult                = 350,
+                C1G2KillOpSpecResult                 = 351,
+                C1G2RecommissionOpSpecResult         = 360,
+                C1G2LockOpSpecResult                 = 352,
+                C1G2BlockEraseOpSpecResult           = 353,
+                C1G2BlockWriteOpSpecResult           = 354,
+                C1G2BlockPermalockOpSpecResult       = 361,
+                C1G2BlockPermalockStatusOpSpecResult = 362,
+                ClientRequestOpSpecResult            = 15<<8, # XXX correct?
+                )),
+        Switch("OpSpecResult",
+            lambda ctx: ctx.TLVType, {
+            "C1G2ReadOpSpecResult":           C1G2ReadOpSpecResult,
+            "C1G2WriteOpSpecResult":          C1G2WriteOpSpecResult,
+            "C1G2KillOpSpecResult":           C1G2KillOpSpecResult,
+            "C1G2RecommissionOpSpecResult":   C1G2RecommissionOpSpecResult,
+            "C1G2LockOpSpecResult":           C1G2LockOpSpecResult,
+            "C1G2BlockEraseOpSpecResult":     C1G2BlockEraseOpSpecResult,
+            "C1G2BlockWriteOpSpecResult":     C1G2BlockWriteOpSpecResult,
+            "C1G2BlockPermalockOpSpecResult": C1G2BlockPermalockOpSpecResult,
+            "C1G2BlockPermalockStatusOpSpecResult": \
+                C1G2BlockPermalockStatusOpSpecResult,
+            "ClientRequestOpSpecResult":      ClientRequestOpSpecResult,
+            })
+        )
+
+# 17.2.7.3
+TagReportData = Struct("TagReportData",
+        TLVParameterHeader(240),
+        Peek(UBInt8("EPCType")),
+        IfThenElse("EPC", lambda ctx: ctx.EPCType == 0x8d, EPC96, EPCData),
+        Optional(ROSpecID),
+        Optional(SpecIndex),
+        Optional(InventoryParameterSpecID),
+        Optional(AntennaID),
+        Optional(PeakRSSI),
+        Optional(ChannelIndex),
+        Optional(FirstSeenTimestampUTC),
+        Optional(FirstSeenTimestampUptime),
+        Optional(LastSeenTimestampUTC),
+        Optional(LastSeenTimestampUptime),
+        Optional(TagSeenCount),
+        OptionalGreedyRange(Struct("AirProtocolTagData",
+                # C1G2PC,
+                # C1G2XPCW1,
+                # C1G2XPCW2, or
+                # C1G2CRC
+                )),
+        Optional(AccessSpecID),
+        OptionalGreedyRange(OpSpecResult))
+
+# 17.2.5.1
+AccessSpec = Struct("AccessSpec",
+        TLVParameterHeader(207),
+        UBInt32("AccessSpecID"),
+        UBInt16("AntennaID"),
+        AirProtocol,
+        EmbeddedBitStruct(
+            Flag("CurrentState"),
+            Alias("C", "CurrentState"),
+            Padding(7)),
+        UBInt32("ROSpecID"),
+        AccessSpecStopTrigger,
+        AccessCommand,
+        Optional(AccessReportSpec),
+        # XXX OptionalGreedyRange(CustomParameter)
+        )
