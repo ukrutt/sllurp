@@ -17,6 +17,10 @@ def finish (_):
     logger.info('total # of tags seen: {}'.format(tagReport))
     reactor.stop()
 
+def access (proto):
+    return proto.startAccess(readWords=args.read_words,
+            writeWords=args.write_words)
+
 def politeShutdown (factory):
     return factory.politeShutdown()
 
@@ -36,7 +40,7 @@ def parse_args ():
     global args
     parser = argparse.ArgumentParser(description='Simple RFID Reader Inventory')
     parser.add_argument('host', help='hostname or IP address of RFID reader',
-            nargs='+')
+            nargs='*')
     parser.add_argument('-p', '--port', default=llrp.LLRP_PORT, type=int,
             help='port to connect to (default {})'.format(llrp.LLRP_PORT))
     parser.add_argument('-t', '--time', default=10, type=float,
@@ -45,17 +49,21 @@ def parse_args ():
             help='show debugging output')
     parser.add_argument('-n', '--report-every-n-tags', default=1, type=int,
             dest='every_n', metavar='N', help='issue a TagReport every N tags')
-    parser.add_argument('-a', '--antennas', default='1',
-            help='comma-separated list of antennas to enable')
     parser.add_argument('-X', '--tx-power', default=0, type=int,
             dest='tx_power', help='Transmit power (default 0=max power)')
     parser.add_argument('-M', '--modulation', default='M8',
             help='modulation (default M8)')
     parser.add_argument('-T', '--tari', default=0, type=int,
             help='Tari value (default 0=auto)')
+
+    # read or write
+    op = parser.add_mutually_exclusive_group(required=True)
+    op.add_argument('-r', '--read-words', type=int,
+            help='Number of words to read from MB 0 WordPtr 0')
+    op.add_argument('-w', '--write-words', type=int,
+            help='Number of words to write to MB 0 WordPtr 0')
     parser.add_argument('-l', '--logfile')
-    parser.add_argument('-r', '--reconnect', action='store_true',
-            default=False, help='reconnect on connection failure or loss')
+
     args = parser.parse_args()
 
 def init_logging ():
@@ -77,23 +85,17 @@ def main ():
     parse_args()
     init_logging()
 
-    enabled_antennas = map(lambda x: int(x.strip()), args.antennas.split(','))
+    # will be called when all connections have terminated normally
+    onFinish = defer.Deferred()
+    onFinish.addCallback(finish)
 
-    # d.callback will be called when all connections have terminated normally.
-    # use d.addCallback(<callable>) to define end-of-program behavior.
-    d = defer.Deferred()
-    d.addCallback(finish)
-
-    fac = llrp.LLRPClientFactory(onFinish=d,
-            duration=args.time,
-            report_every_n_tags=args.every_n,
-            antennas=enabled_antennas,
+    fac = llrp.LLRPClientFactory(onFinish=onFinish,
             disconnect_when_done=True,
-            tx_power=args.tx_power,
             modulation=args.modulation,
             tari=args.tari,
             start_inventory=True,
-            reconnect=args.reconnect,
+            tx_power=args.tx_power,
+            report_every_n_tags=args.every_n,
             tag_content_selector={
                 'EnableROSpecID': False,
                 'EnableSpecIndex': False,
@@ -104,12 +106,15 @@ def main ():
                 'EnableFirstSeenTimestamp': False,
                 'EnableLastSeenTimestamp': True,
                 'EnableTagSeenCount': True,
-                'EnableAccessSpecID': False
+                'EnableAccessSpecID': True
             })
 
     # tagReportCallback will be called every time the reader sends a TagReport
     # message (i.e., when it has "seen" tags).
     fac.addTagReportCallback(tagReportCallback)
+
+    # start tag access once inventorying
+    fac.addStateCallback(llrp.LLRPClient.STATE_INVENTORYING, access)
 
     for host in args.host:
         reactor.connectTCP(host, args.port, fac, timeout=3)
