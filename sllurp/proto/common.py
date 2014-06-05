@@ -77,3 +77,9 @@ AirProtocol = Enum(UBInt8("ProtocolID"),
         EPCGlobalC1G2 = 1,
         # 2-255 for future use
         )
+
+class DecodingError (Exception):
+    pass
+
+class EncodingError (Exception):
+    pass

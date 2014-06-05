@@ -1,1 +1,1 @@
-__all__ = ('common', 'messages', 'params')
+__all__ = ('common', 'messages', 'params', 'decode', 'encode')

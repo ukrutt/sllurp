@@ -7,7 +7,7 @@ import sllurp.llrp_errors
 import binascii
 import logging
 
-from sllurp.proto import messages, params, common
+from sllurp.proto import messages, params, common, decode, encode
 from construct import Struct, Embed
 
 logLevel = logging.WARNING
@@ -231,9 +231,14 @@ class TestDecodeGetReaderCapabilitiesResponse (unittest.TestCase):
         self.assertTrue(s)
 
     def test_parse_capabilities_response (self):
-        s = messages.GET_READER_CAPABILITIES_RESPONSE.parse(self.getCapsResponse)
-        self.assertTrue(s)
+        msg = decode.decodeMessage(self.getCapsResponse)
+        self.assertEqual(msg.Type, 11)
+        self.assertTrue(msg)
 
+class TestEncoding (unittest.TestCase):
+    def test_encoder (self):
+        msg = encode.encodeMessage('GET_SUPPORTED_VERSION')
+        self.assertEqual(msg.encode('hex'), '042e0000000a00000000')
 
 if __name__ == '__main__':
     unittest.main()

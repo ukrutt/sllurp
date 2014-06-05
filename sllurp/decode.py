@@ -1,7 +1,8 @@
+from __future__ import print_function
 import binascii
 import argparse
 import logging
-from sllurp.llrp import LLRPMessage
+from sllurp.proto.decode import decodeMessage, DecodingError
 
 logger = logging.getLogger('sllurp')
 logger.propagate = False
@@ -17,6 +18,10 @@ if __name__ == '__main__':
     logger.addHandler(logging.StreamHandler())
 
     m = binascii.unhexlify(args.msg)
-    msg = LLRPMessage(msgbytes=m)
-    print 'Decoded message:\n=========='
-    print msg
+
+    try:
+        msg = decodeMessage(m)
+        print('Decoded message:\n==========')
+        print(msg)
+    except DecodingError as er:
+        print('Decoding error:', er)

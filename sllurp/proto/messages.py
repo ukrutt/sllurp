@@ -2,40 +2,52 @@
 specification."""
 
 from construct import *
-from .common import MessageHeader
+from .common import MessageHeader, DecodingError, EncodingError
 from . import params
 
+# mapping of message types to the corresponding message decoders
+decoderClasses = {}
+
+# mapping of message names to their corresponding encoders
+encoderClasses = {}
+
+class LLRPMessageStruct (Struct):
+    def __init__ (self, name, ty, *subcons, **kw):
+        _subcons = (Embed(MessageHeader(ty)),) + subcons
+        Struct.__init__(self, name, *_subcons, **kw)
+        self.name = name
+        encoderClasses[name] = self
+        self.type = ty
+        decoderClasses[ty] = self
+
 # 17.1.1
-GET_SUPPORTED_VERSION = Struct("GET_SUPPORTED_VERSION",
-        Embed(MessageHeader(46)))
+GET_SUPPORTED_VERSION = LLRPMessageStruct("GET_SUPPORTED_VERSION", 46)
 
 # 17.1.2
-GET_SUPPORTED_VERSION_RESPONSE = Struct("GET_SUPPORTED_VERSION_RESPONSE",
-        Embed(MessageHeader(56)),
+GET_SUPPORTED_VERSION_RESPONSE = LLRPMessageStruct( \
+        "GET_SUPPORTED_VERSION_RESPONSE", 56,
         UBInt8("CurrentVersion"),
         UBInt8("SupportedVersion"),
         params.LLRPStatus)
 
 # 17.1.3
-SET_PROTOCOL_VERSION = Struct("SET_PROTOCOL_VERSION",
-        Embed(MessageHeader(47)),
+SET_PROTOCOL_VERSION = LLRPMessageStruct("SET_PROTOCOL_VERSION", 47,
         UBInt8("ProtocolVersion"))
 
 # 17.1.4
-SET_PROTOCOL_VERSION_RESPONSE = Struct("SET_PROTOCOL_VERSION_RESPONSE",
-        Embed(MessageHeader(57)),
+SET_PROTOCOL_VERSION_RESPONSE = LLRPMessageStruct( \
+        "SET_PROTOCOL_VERSION_RESPONSE", 57,
         params.LLRPStatus)
 
 # 17.1.5
-GET_READER_CAPABILITIES = Struct("GET_READER_CAPABILITIES",
-        Embed(MessageHeader(1)),
+GET_READER_CAPABILITIES = LLRPMessageStruct("GET_READER_CAPABILITIES", 1,
         UBInt8("RequestedData"), # XXX Enum?
         # XXX OptionalGreedyRange(CustomParameter)
         )
 
 # 17.1.6
-GET_READER_CAPABILITIES_RESPONSE = Struct("GET_READER_CAPABILITIES_RESPONSE",
-        Embed(MessageHeader(11)),
+GET_READER_CAPABILITIES_RESPONSE = LLRPMessageStruct( \
+        "GET_READER_CAPABILITIES_RESPONSE", 11,
         params.LLRPStatus,
         Optional(params.GeneralDeviceCapabilities),
         Optional(params.LLRPCapabilities),
@@ -43,172 +55,139 @@ GET_READER_CAPABILITIES_RESPONSE = Struct("GET_READER_CAPABILITIES_RESPONSE",
         Optional(params.C1G2LLRPCapabilities))
 
 # 17.1.7
-ADD_ROSPEC = Struct("ADD_ROSPEC",
-        Embed(MessageHeader(20)),
+ADD_ROSPEC = LLRPMessageStruct("ADD_ROSPEC", 20,
         params.ROSpec)
 
 # 17.1.8
-ADD_ROSPEC_RESPONSE = Struct("ADD_ROSPEC_RESPONSE",
-        Embed(MessageHeader(30)),
+ADD_ROSPEC_RESPONSE = LLRPMessageStruct("ADD_ROSPEC_RESPONSE", 30,
         params.LLRPStatus)
 
 # 17.1.9
-DELETE_ROSPEC = Struct("DELETE_ROSPEC",
-        Embed(MessageHeader(21)),
+DELETE_ROSPEC = LLRPMessageStruct("DELETE_ROSPEC", 21,
         UBInt32("ROSpecID"))
 
 # 17.1.10
-DELETE_ROSPEC_RESPONSE = Struct("DELETE_ROSPEC_RESPONSE",
-        Embed(MessageHeader(31)),
+DELETE_ROSPEC_RESPONSE = LLRPMessageStruct("DELETE_ROSPEC_RESPONSE", 31,
         params.LLRPStatus)
 
 # 17.1.11
-START_ROSPEC = Struct("START_ROSPEC",
-        Embed(MessageHeader(22)),
+START_ROSPEC = LLRPMessageStruct("START_ROSPEC", 22,
         UBInt32("ROSpecID"))
 
 # 17.1.12
-START_ROSPEC_RESPONSE = Struct("START_ROSPEC_RESPONSE",
-        Embed(MessageHeader(32)),
+START_ROSPEC_RESPONSE = LLRPMessageStruct("START_ROSPEC_RESPONSE", 32,
         params.LLRPStatus)
 
 # 17.1.13
-STOP_ROSPEC = Struct("STOP_ROSPEC",
-        Embed(MessageHeader(23)),
+STOP_ROSPEC = LLRPMessageStruct("STOP_ROSPEC", 23,
         UBInt32("ROSpecID"))
 
 # 17.1.14
-STOP_ROSPEC_RESPONSE = Struct("STOP_ROSPEC_RESPONSE",
-        Embed(MessageHeader(33)),
+STOP_ROSPEC_RESPONSE = LLRPMessageStruct("STOP_ROSPEC_RESPONSE", 33,
         params.LLRPStatus)
 
 # 17.1.15
-ENABLE_ROSPEC = Struct("ENABLE_ROSPEC",
-        Embed(MessageHeader(24)),
+ENABLE_ROSPEC = LLRPMessageStruct("ENABLE_ROSPEC", 24,
         UBInt32("ROSpecID"))
 
 # 17.1.16
-ENABLE_ROSPEC_RESPONSE = Struct("ENABLE_ROSPEC_RESPONSE",
-        Embed(MessageHeader(34)),
+ENABLE_ROSPEC_RESPONSE = LLRPMessageStruct("ENABLE_ROSPEC_RESPONSE", 34,
         params.LLRPStatus)
 
 # 17.1.17
-DISABLE_ROSPEC = Struct("DISABLE_ROSPEC",
-        Embed(MessageHeader(25)),
+DISABLE_ROSPEC = LLRPMessageStruct("DISABLE_ROSPEC", 25,
         UBInt32("ROSpecID"))
 
 # 17.1.18
-DISABLE_ROSPEC_RESPONSE = Struct("DISABLE_ROSPEC_RESPONSE",
-        Embed(MessageHeader(35)),
+DISABLE_ROSPEC_RESPONSE = LLRPMessageStruct("DISABLE_ROSPEC_RESPONSE", 35,
         params.LLRPStatus)
 
 # 17.1.19
-GET_ROSPECS = Struct("GET_ROSPECS",
-        Embed(MessageHeader(26)))
+GET_ROSPECS = LLRPMessageStruct("GET_ROSPECS", 26)
 
 # 17.1.20
-GET_ROSPECS_RESPONSE = Struct("GET_ROSPECS_RESPONSE",
-        Embed(MessageHeader(36)),
+GET_ROSPECS_RESPONSE = LLRPMessageStruct("GET_ROSPECS_RESPONSE", 36,
         params.LLRPStatus,
         OptionalGreedyRange(params.ROSpec))
 
 # 17.1.21
-ADD_ACCESSSPEC = Struct("ADD_ACCESSSPEC",
-        Embed(MessageHeader(40)),
+ADD_ACCESSSPEC = LLRPMessageStruct("ADD_ACCESSSPEC", 40,
         params.AccessSpec)
 
 # 17.1.22
-ADD_ACCESSSPEC_RESPONSE = Struct("ADD_ACCESSSPEC_RESPONSE",
-        Embed(MessageHeader(50)),
+ADD_ACCESSSPEC_RESPONSE = LLRPMessageStruct("ADD_ACCESSSPEC_RESPONSE", 50,
         params.LLRPStatus)
 
 # 17.1.23
-DELETE_ACCESSSPEC = Struct("DELETE_ACCESSSPEC",
-        Embed(MessageHeader(41)),
+DELETE_ACCESSSPEC = LLRPMessageStruct("DELETE_ACCESSSPEC", 41,
         UBInt32("AccessSpecID"))
 
 # 17.1.24
-DELETE_ACCESSSPEC_RESPONSE = Struct("DELETE_ACCESSSPEC_RESPONSE",
-        Embed(MessageHeader(51)),
+DELETE_ACCESSSPEC_RESPONSE = LLRPMessageStruct("DELETE_ACCESSSPEC_RESPONSE", 51,
         params.LLRPStatus)
 
 # 17.1.25
-ENABLE_ACCESSSPEC = Struct("ENABLE_ACCESSSPEC",
-        Embed(MessageHeader(42)),
+ENABLE_ACCESSSPEC = LLRPMessageStruct("ENABLE_ACCESSSPEC", 42,
         UBInt32("AccessSpecID"))
 
 # 17.1.26
-ENABLE_ACCESSSPEC_RESPONSE = Struct("ENABLE_ACCESSSPEC_RESPONSE",
-        Embed(MessageHeader(52)),
+ENABLE_ACCESSSPEC_RESPONSE = LLRPMessageStruct("ENABLE_ACCESSSPEC_RESPONSE", 52,
         params.LLRPStatus)
 
 # 17.1.27
-DISABLE_ACCESSSPEC = Struct("DISABLE_ACCESSSPEC",
-        Embed(MessageHeader(43)),
+DISABLE_ACCESSSPEC = LLRPMessageStruct("DISABLE_ACCESSSPEC", 43,
         UBInt32("AccessSpecID"))
 
 # 17.1.28
-DISABLE_ACCESSSPEC_RESPONSE = Struct("DISABLE_ACCESSSPEC_RESPONSE",
-        Embed(MessageHeader(53)),
+DISABLE_ACCESSSPEC_RESPONSE = LLRPMessageStruct("DISABLE_ACCESSSPEC_RESPONSE",
+        53,
         params.LLRPStatus)
 
 # 17.1.29
-GET_ACCESSSPECS = Struct("GET_ACCESSSPECS",
-        Embed(MessageHeader(44)))
+GET_ACCESSSPECS = LLRPMessageStruct("GET_ACCESSSPECS", 44)
 
 # 17.1.30
-GET_ACCESSSPECS_RESPONSE = Struct("GET_ACCESSSPECS_RESPONSE",
-        Embed(MessageHeader(54)),
+GET_ACCESSSPECS_RESPONSE = LLRPMessageStruct("GET_ACCESSSPECS_RESPONSE", 54,
         params.LLRPStatus,
         OptionalGreedyRange(params.AccessSpec))
 
 # 17.1.31
-CLIENT_REQUEST_OP = Struct("CLIENT_REQUEST_OP",
-        Embed(MessageHeader(45)),
+CLIENT_REQUEST_OP = LLRPMessageStruct("CLIENT_REQUEST_OP", 45,
         params.TagReportData)
 
 # 17.1.32
-CLIENT_REQUEST_OP_RESPONSE = Struct("CLIENT_REQUEST_OP_RESPONSE",
-        Embed(MessageHeader(55)),
+CLIENT_REQUEST_OP_RESPONSE = LLRPMessageStruct("CLIENT_REQUEST_OP_RESPONSE", 55,
         params.ClientRequestResponse)
 
 # 17.1.33
-GET_REPORT = Struct("GET_REPORT",
-        Embed(MessageHeader(60)))
+GET_REPORT = LLRPMessageStruct("GET_REPORT", 60)
 
 # 17.1.34
-RO_ACCESS_REPORT = Struct("RO_ACCESS_REPORT",
-        Embed(MessageHeader(61)),
+RO_ACCESS_REPORT = LLRPMessageStruct("RO_ACCESS_REPORT", 61,
         OptionalGreedyRange(params.TagReportData),
         OptionalGreedyRange(params.RFSurveyReportData),
         # XXX OptionalGreedyRange(CustomParameter)
         )
 
 # 17.1.35
-KEEPALIVE = Struct("KEEPALIVE",
-        Embed(MessageHeader(62)))
+KEEPALIVE = LLRPMessageStruct("KEEPALIVE", 62)
 
 # 17.1.36
-KEEPALIVE_ACK = Struct("KEEPALIVE_ACK",
-        Embed(MessageHeader(72)))
+KEEPALIVE_ACK = LLRPMessageStruct("KEEPALIVE_ACK", 72)
 
 # 17.1.37
-READER_EVENT_NOTIFICATION = Struct("READER_EVENT_NOTIFICATION",
-        Embed(MessageHeader(63)),
+READER_EVENT_NOTIFICATION = LLRPMessageStruct("READER_EVENT_NOTIFICATION", 63,
         params.ReaderEventNotificationData)
 
 # 17.1.38
-ENABLE_EVENTS_AND_REPORTS = Struct("ENABLE_EVENTS_AND_REPORTS",
-        Embed(MessageHeader(64)))
+ENABLE_EVENTS_AND_REPORTS = LLRPMessageStruct("ENABLE_EVENTS_AND_REPORTS", 64)
 
 # 17.1.39
-ERROR_MESSAGE = Struct("ERROR_MESSAGE",
-        Embed(MessageHeader(100)),
+ERROR_MESSAGE = LLRPMessageStruct("ERROR_MESSAGE", 100,
         params.LLRPStatus)
 
 # 17.1.40
-GET_READER_CONFIG = Struct("GET_READER_CONFIG",
-        Embed(MessageHeader(2)),
+GET_READER_CONFIG = LLRPMessageStruct("GET_READER_CONFIG", 2,
         UBInt16("AntennaID"),
         UBInt8("RequestedData"),
         UBInt16("GPIPortNum"),
@@ -217,8 +196,7 @@ GET_READER_CONFIG = Struct("GET_READER_CONFIG",
         )
 
 # 17.1.41
-GET_READER_CONFIG_RESPONSE = Struct("GET_READER_CONFIG_RESPONSE",
-        Embed(MessageHeader(12)),
+GET_READER_CONFIG_RESPONSE = LLRPMessageStruct("GET_READER_CONFIG_RESPONSE", 12,
         params.LLRPStatus,
         Optional(params.Identification),
         OptionalGreedyRange(params.AntennaProperties),
@@ -235,8 +213,7 @@ GET_READER_CONFIG_RESPONSE = Struct("GET_READER_CONFIG_RESPONSE",
         )
 
 # 17.1.42
-SET_READER_CONFIG = Struct("SET_READER_CONFIG",
-        Embed(MessageHeader(3)),
+SET_READER_CONFIG = LLRPMessageStruct("SET_READER_CONFIG", 3,
         EmbeddedBitStruct(
             Flag("ResetToFactoryDefaults"),
             Alias("R", "ResetToFactoryDefaults"),
@@ -254,18 +231,27 @@ SET_READER_CONFIG = Struct("SET_READER_CONFIG",
         )
 
 # 17.1.43
-SET_READER_CONFIG_RESPONSE = Struct("SET_READER_CONFIG_RESPONSE",
-        Embed(MessageHeader(13)),
+SET_READER_CONFIG_RESPONSE = LLRPMessageStruct("SET_READER_CONFIG_RESPONSE", 13,
         params.LLRPStatus)
 
 # 17.1.44
-CLOSE_CONNECTION = Struct("CLOSE_CONNECTION",
-        Embed(MessageHeader(14)))
+CLOSE_CONNECTION = LLRPMessageStruct("CLOSE_CONNECTION", 14)
 
 # 17.1.45
-CLOSE_CONNECTION_RESPONSE = Struct("CLOSE_CONNECTION_RESPONSE",
-        Embed(MessageHeader(4)),
+CLOSE_CONNECTION_RESPONSE = LLRPMessageStruct("CLOSE_CONNECTION_RESPONSE", 4,
         params.LLRPStatus)
 
 # 17.1.46
 # CUSTOM_MESSAGE not supported.
+
+def getDecoderForType (ty):
+    try:
+        return decoderClasses[ty]
+    except KeyError:
+        raise DecodingError('no decoder for message type {}'.format(ty))
+
+def getEncoderForName (name):
+    try:
+        return encoderClasses[name]
+    except KeyError:
+        raise EncodingError('no encoder for {} messages'.format(name))
