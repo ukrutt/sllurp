@@ -9,26 +9,42 @@ from construct import *
 from .common import TLVParameterHeader, TVParameterHeader, IntRange, \
      StatusCode, AirProtocol
 
-Tests = {}
+# mapping of param types to the corresponding decoders
+decoderClasses = {}
+
+# mapping of param names to their corresponding encoders
+encoderClasses = {}
+
+class LLRPParamStruct (Struct):
+    def __init__ (self, name, ty, *subcons, **kw):
+        hdr = TLVParameterHeader
+        try:
+            if kw['tv']:
+                hdr = TVParameterHeader
+            del kw['tv']
+        except KeyError:
+            pass
+        _subcons = (Embed(hdr(ty)),) + subcons
+        Struct.__init__(self, name, *_subcons, **kw)
+        self.name = name
+        encoderClasses[name] = self
+        self.type = ty
+        decoderClasses[ty] = self
 
 # 17.2.2
-TimestampOrUptime = Struct("TimestampOrUptime",
-        TLVParameterHeader(),
+TimestampOrUptime = LLRPParamStruct("TimestampOrUptime", None,
         UBInt64("Microseconds"))
 
 # 17.2.2.1
-UTCTimestamp = Struct("UTCTimestamp",
-        TLVParameterHeader(128),
+UTCTimestamp = LLRPParamStruct("UTCTimestamp", 128,
         UBInt64("Microseconds"))
 
 # 17.2.2.2
-Uptime = Struct("Uptime",
-        TLVParameterHeader(129),
+Uptime = LLRPParamStruct("Uptime", 129,
         UBInt64("Microseconds"))
 
 # 17.2.3.1
-GeneralDeviceCapabilities = Struct("GeneralDeviceCapabilities",
-        TLVParameterHeader(137),
+GeneralDeviceCapabilities = LLRPParamStruct("GeneralDeviceCapabilities", 137,
         UBInt16("MaxNumberOfAntennaSupported"),
         EmbeddedBitStruct(
             Flag("CanSetAntennaProperties"),
@@ -41,40 +57,35 @@ GeneralDeviceCapabilities = Struct("GeneralDeviceCapabilities",
             lambda ctx: ctx["FirmwareVersionByteCount"]),
 
         # 17.2.3.1.2
-        GreedyRange(Struct("ReceiveSensitivityTableEntry",
-                TLVParameterHeader(139),
+        GreedyRange(LLRPParamStruct("ReceiveSensitivityTableEntry", 139,
                 UBInt16("Index"),
                 IntRange(UBInt16("ReceiveSensitivityValue"), 0, 128))),
 
         # 17.2.3.1.3
-        OptionalGreedyRange(Struct("PerAntennaReceiveSensitivityRange",
-                TLVParameterHeader(149),
+        OptionalGreedyRange(LLRPParamStruct("PerAntennaReceiveSensitivityRange",
+                149,
                 UBInt16("AntennaID"),
                 UBInt16("ReceiveSensitivityIndexMin"),
                 UBInt16("ReceiveSensitivityIndexMax"))),
 
         # 17.2.3.1.5
-        Struct("GPIOCapabilities",
-                TLVParameterHeader(141),
+        LLRPParamStruct("GPIOCapabilities", 141,
                 UBInt16("NumGPIs"),
                 UBInt16("NumGPOs")),
 
         # 17.2.3.1.4
-        GreedyRange(Struct("PerAntennaAirProtocol",
-                    TLVParameterHeader(140),
+        GreedyRange(LLRPParamStruct("PerAntennaAirProtocol", 140,
                     UBInt16("AntennaID"),
                     UBInt16("NumProtocols"),
                     Array(lambda ctx: ctx.NumProtocols, AirProtocol))),
 
         # 17.2.3.1.1
-        Optional(Struct("MaximumReceiveSensitivity",
-                    TLVParameterHeader(363),
+        Optional(LLRPParamStruct("MaximumReceiveSensitivity", 363,
                     UBInt16("MaximumSensitivity")))
         )
 
 # 17.2.3.2
-LLRPCapabilities = Struct("LLRPCapabilities",
-        TLVParameterHeader(142),
+LLRPCapabilities = LLRPParamStruct("LLRPCapabilities", 142,
         EmbeddedBitStruct(
             Flag("CanDoRFSurvey"),
             Flag("CanReportBufferFillWarning"),
@@ -91,44 +102,37 @@ LLRPCapabilities = Struct("LLRPCapabilities",
         UBInt32("MaxNumOpSpecsPerAccessSpec"))
 
 # 17.2.3.4.1
-UHFBandCapabilities = Struct("UHFBandCapabilities",
-        TLVParameterHeader(144),
+UHFBandCapabilities = LLRPParamStruct("UHFBandCapabilities", 144,
 
         # 17.2.3.4.1.1
-        GreedyRange(Struct("TransmitPowerLevelTableEntry",
-                TLVParameterHeader(145),
+        GreedyRange(LLRPParamStruct("TransmitPowerLevelTableEntry", 145,
                 IntRange(UBInt16("Index"), 0, 255),
                 UBInt16("TransmitPowerValue"))),
 
         # 17.2.3.4.1.2
-        Struct("FrequencyInformation",
-            TLVParameterHeader(146),
+        LLRPParamStruct("FrequencyInformation", 146,
             EmbeddedBitStruct(
                 Flag("Hopping"),
                 Padding(7)),
 
             # 17.2.3.4.1.2.1
-            OptionalGreedyRange(Struct("FrequencyHopTable",
-                    TLVParameterHeader(147),
+            OptionalGreedyRange(LLRPParamStruct("FrequencyHopTable", 147,
                     UBInt8("HopTableID"),
                     Padding(1),
                     UBInt16("NumHops"),
                     Array(lambda ctx: ctx.NumHops, UBInt32("Frequency")))),
 
             # 17.2.3.4.1.2.2
-            Optional(Struct("FixedFrequencyTable",
-                    TLVParameterHeader(148),
+            Optional(LLRPParamStruct("FixedFrequencyTable", 148,
                     UBInt16("NumFrequencies"),
                     Array(lambda ctx: ctx.NumFrequencies,
                         UBInt32("Frequency"))))),
 
         # 17.3.1.1.2
-        GreedyRange(Struct("UHFC1G2RFModeTable",
-                    TLVParameterHeader(328),
+        GreedyRange(LLRPParamStruct("UHFC1G2RFModeTable", 328,
 
                     # 17.3.1.1.2.1
-                    GreedyRange(Struct("UHFC1G2RFModeTableEntry",
-                            TLVParameterHeader(329),
+                    GreedyRange(LLRPParamStruct("UHFC1G2RFModeTableEntry", 329,
                             UBInt32("ModeIdentifier"),
                             EmbeddedBitStruct(
                                 Flag("DivideRatio"),
@@ -167,15 +171,13 @@ UHFBandCapabilities = Struct("UHFBandCapabilities",
                             )))),
 
         # 17.2.3.4.1.3
-        Optional(Struct("RFSurveyFrequencyCapabilities",
-                    TLVParameterHeader(365),
+        Optional(LLRPParamStruct("RFSurveyFrequencyCapabilities", 365,
                     UBInt32("MinimumFrequency"),
                     UBInt32("MaximumFrequency"))))
 
 
 # 17.2.3.4
-RegulatoryCapabilities = Struct("RegulatoryCapabilities",
-        TLVParameterHeader(143),
+RegulatoryCapabilities = LLRPParamStruct("RegulatoryCapabilities", 143,
         UBInt16("CountryCode"),
         UBInt16("CommunicationsStandard"),
         Optional(UHFBandCapabilities),
@@ -183,15 +185,13 @@ RegulatoryCapabilities = Struct("RegulatoryCapabilities",
         )
 
 # 17.2.4.1.1.1.1
-PeriodicTriggerValue = Struct("PeriodicTriggerValue",
-        TLVParameterHeader(180),
+PeriodicTriggerValue = LLRPParamStruct("PeriodicTriggerValue", 180,
         UBInt32("Offset"),
         UBInt32("Period"),
         Optional(UTCTimestamp))
 
 # 17.2.4.1.1.1.2
-GPITriggerValue = Struct("GPITriggerValue",
-        TLVParameterHeader(181),
+GPITriggerValue = LLRPParamStruct("GPITriggerValue", 181,
         UBInt16("GPIPortNumber"),
         EmbeddedBitStruct(
             Flag("GPIEvent"),
@@ -200,8 +200,7 @@ GPITriggerValue = Struct("GPITriggerValue",
         UBInt32("Timeout"))
 
 # 17.2.4.1.1.1
-ROSpecStartTrigger = Struct("ROSpecStartTrigger",
-        TLVParameterHeader(179),
+ROSpecStartTrigger = LLRPParamStruct("ROSpecStartTrigger", 179,
         Enum(UBInt8("ROSpecStartTriggerType"),
             Null = 0,
             Immediate = 1,
@@ -213,8 +212,7 @@ ROSpecStartTrigger = Struct("ROSpecStartTrigger",
             GPITriggerValue))
 
 # 17.2.4.1.1.2
-ROSpecStopTrigger = Struct("ROSpecStopTrigger",
-        TLVParameterHeader(182),
+ROSpecStopTrigger = LLRPParamStruct("ROSpecStopTrigger", 182,
         Enum(UBInt8("ROSpecStopTriggerType"),
             Null = 0,
             Duration = 1,
@@ -223,14 +221,12 @@ ROSpecStopTrigger = Struct("ROSpecStopTrigger",
         Optional(GPITriggerValue))
 
 # 17.2.4.1.1
-ROBoundarySpec = Struct("ROBoundarySpec",
-        TLVParameterHeader(178),
+ROBoundarySpec = LLRPParamStruct("ROBoundarySpec", 178,
         ROSpecStartTrigger,
         ROSpecStopTrigger)
 
 # 17.2.4.2.1.1
-TagObservationTrigger = Struct("TagObservationTrigger",
-        TLVParameterHeader(185),
+TagObservationTrigger = LLRPParamStruct("TagObservationTrigger", 185,
         Enum(UBInt8("TriggerType"),
             UponNTagObservations = 0,
             UponTimeout = 1,
@@ -243,8 +239,7 @@ TagObservationTrigger = Struct("TagObservationTrigger",
         UBInt32("Timeout"))
 
 # 17.2.4.2.1
-AISpecStopTrigger = Struct("AISpecStopTrigger",
-        TLVParameterHeader(184),
+AISpecStopTrigger = LLRPParamStruct("AISpecStopTrigger", 184,
         Enum(UBInt8("AISpecStopTriggerType"),
             Null = 0,
             Duration = 1,
@@ -258,20 +253,17 @@ AISpecStopTrigger = Struct("AISpecStopTrigger",
             TagObservationTrigger))
 
 # 17.2.6.7
-RFReceiverSettings = Struct("RFReceiverSettings",
-        TLVParameterHeader(223),
+RFReceiverSettings = LLRPParamStruct("RFReceiverSettings", 223,
         UBInt16("ReceiveSensitivity"))
 
 # 17.2.6.8
-RFTransmitterSettings = Struct("RFTransmitterSettings",
-        TLVParameterHeader(224),
+RFTransmitterSettings = LLRPParamStruct("RFTransmitterSettings", 224,
         UBInt16("HopTableID"),
         UBInt16("ChannelIndex"),
         UBInt16("TransmitPower"))
 
 # 17.2.6.9
-GPIPortCurrentState = Struct("GPIPortCurrentState",
-        TLVParameterHeader(225),
+GPIPortCurrentState = LLRPParamStruct("GPIPortCurrentState", 225,
         UBInt16("GPIPortNumber"),
         EmbeddedBitStruct(
             Flag("GPIConfig"),
@@ -283,16 +275,14 @@ GPIPortCurrentState = Struct("GPIPortCurrentState",
             Unknown = 2))
 
 # 17.2.6.10
-EventsAndReports = Struct("EventsAndReports",
-        TLVParameterHeader(226),
+EventsAndReports = LLRPParamStruct("EventsAndReports", 226,
         EmbeddedBitStruct(
             Flag("HoldEventsAndReportsUponReconnect"),
             Alias("H", "HoldEventsAndReportsUponReconnect"),
             Padding(7)))
 
 # 17.3.1.2.1.1.1
-C1G2TagInventoryMask = Struct("C1G2TagInventoryMask",
-        TLVParameterHeader(332),
+C1G2TagInventoryMask = LLRPParamStruct("C1G2TagInventoryMask", 332,
         EmbeddedBitStruct(
             BitField("MemoryBank", 2),
             Alias("MB", "MemoryBank"),
@@ -300,25 +290,20 @@ C1G2TagInventoryMask = Struct("C1G2TagInventoryMask",
         UBInt16("Pointer"),
         UBInt16("MaskBitCount"),
         MetaField("TagMask", lambda ctx: ctx.MaskBitCount / 8))
-Tests["C1G2TagInventoryMask"] = "014c" "80" "0000" "60" \
-        "ffffffffffffffffffffffff"
 
 # 17.3.1.2.1.1.2
 C1G2TagInventoryStateAwareFilterAction = \
-    Struct("C1G2TagInventoryStateAwareFilterAction",
-        TLVParameterHeader(333),
+    LLRPParamStruct("C1G2TagInventoryStateAwareFilterAction", 333,
         IntRange(UBInt8("Target"), 0, 4),
         IntRange(UBInt8("Action"), 0, 7))
 
 # 17.3.1.2.1.1.3
 C1G2TagInventoryStateUnawareFilterAction = \
-    Struct("C1G2TagInventoryStateUnawareFilterAction",
-        TLVParameterHeader(334),
+    LLRPParamStruct("C1G2TagInventoryStateUnawareFilterAction", 334,
         IntRange(UBInt8("Action"), 0, 5))
 
 # 17.3.1.2.1.1
-C1G2Filter = Struct("C1G2Filter",
-        TLVParameterHeader(331),
+C1G2Filter = LLRPParamStruct("C1G2Filter", 331,
         EmbeddedBitStruct(
             Enum(BitField("T", 2),
                 Unspecified = 0,
@@ -330,15 +315,13 @@ C1G2Filter = Struct("C1G2Filter",
         Optional(C1G2TagInventoryStateUnawareFilterAction))
 
 # 17.3.1.2.1.2
-C1G2RFControl = Struct("C1G2RFControl",
-        TLVParameterHeader(335),
+C1G2RFControl = LLRPParamStruct("C1G2RFControl", 335,
         UBInt16("ModeIndex"),
         IntRange(UBInt16("Tari"), 6250, 25000))
 
 # 17.3.1.2.1.3.1
 C1G2TagInventoryStateAwareSingulationAction = \
-    Struct("C1G2TagInventoryStateAwareSingulationAction",
-        TLVParameterHeader(337),
+    LLRPParamStruct("C1G2TagInventoryStateAwareSingulationAction", 337,
         EmbeddedBitStruct(
             Flag("I"),
             Flag("S"),
@@ -346,8 +329,7 @@ C1G2TagInventoryStateAwareSingulationAction = \
             Alias("A", "S_All")))
 
 # 17.3.1.2.1.3
-C1G2SingulationControl = Struct("C1G2SingulationControl",
-        TLVParameterHeader(336),
+C1G2SingulationControl = LLRPParamStruct("C1G2SingulationControl", 336,
         IntRange(UBInt8("Session"), 0, 3),
         Alias("S", "Session"),
         UBInt16("TagPopulation"),
@@ -355,8 +337,7 @@ C1G2SingulationControl = Struct("C1G2SingulationControl",
         Optional(C1G2TagInventoryStateAwareSingulationAction))
 
 # 17.3.1.2.1
-C1G2InventoryCommand = Struct("C1G2InventoryCommand",
-        TLVParameterHeader(330),
+C1G2InventoryCommand = LLRPParamStruct("C1G2InventoryCommand", 330,
         OptionalGreedyRange(C1G2Filter),
         Optional(C1G2RFControl),
         Optional(C1G2SingulationControl),
@@ -364,8 +345,7 @@ C1G2InventoryCommand = Struct("C1G2InventoryCommand",
         )
 
 # 17.2.6.5
-AntennaProperties = Struct("AntennaProperties",
-        TLVParameterHeader(221),
+AntennaProperties = LLRPParamStruct("AntennaProperties", 221,
         EmbeddedBitStruct(
             Flag("Connected"),
             Alias("C", "Connected"),
@@ -374,8 +354,7 @@ AntennaProperties = Struct("AntennaProperties",
         SBInt16("AntennaGain"))
 
 # 17.2.6.6
-AntennaConfiguration = Struct("AntennaConfiguration",
-        TLVParameterHeader(222),
+AntennaConfiguration = LLRPParamStruct("AntennaConfiguration", 222,
         UBInt16("AntennaID"),
         Optional(RFReceiverSettings),
         Optional(RFTransmitterSettings),
@@ -384,8 +363,7 @@ AntennaConfiguration = Struct("AntennaConfiguration",
         )
 
 # 17.2.4.2.2
-InventoryParameterSpec = Struct("InventoryParameterSpec",
-        TLVParameterHeader(186),
+InventoryParameterSpec = LLRPParamStruct("InventoryParameterSpec", 186,
         UBInt16("InventoryParameterSpecID"),
         AirProtocol,
         OptionalGreedyRange(AntennaConfiguration),
@@ -393,8 +371,7 @@ InventoryParameterSpec = Struct("InventoryParameterSpec",
         )
 
 # 17.2.4.2
-AISpec = Struct("AISpec",
-        TLVParameterHeader(183),
+AISpec = LLRPParamStruct("AISpec", 183,
         UBInt16("AntennaCount"),
         GreedyRange(UBInt16("AntennaID")),
         AISpecStopTrigger,
@@ -403,8 +380,7 @@ AISpec = Struct("AISpec",
         )
 
 # 17.2.4.3.1
-RFSurveySpecStopTrigger = Struct("RFSurveySpecStopTrigger",
-        TLVParameterHeader(188),
+RFSurveySpecStopTrigger = LLRPParamStruct("RFSurveySpecStopTrigger", 188,
         Enum(UBInt8("StopTriggerType"),
             Null = 0,
             Duration = 1,
@@ -413,8 +389,7 @@ RFSurveySpecStopTrigger = Struct("RFSurveySpecStopTrigger",
         UBInt32("N"))
 
 # 17.2.4.3
-RFSurveySpec = Struct("RFSurveySpec",
-        TLVParameterHeader(187),
+RFSurveySpec = LLRPParamStruct("RFSurveySpec", 187,
         UBInt16("AntennaID"),
         UBInt32("StartFrequency"),
         UBInt32("EndFrequency"),
@@ -423,13 +398,11 @@ RFSurveySpec = Struct("RFSurveySpec",
         )
 
 # 17.2.4.4
-LoopSpec = Struct("LoopSpec",
-        TLVParameterHeader(355),
+LoopSpec = LLRPParamStruct("LoopSpec", 355,
         UBInt32("LoopCount"))
 
 # 17.3.1.5.1
-C1G2EPCMemorySelector = Struct("C1G2EPCMemorySelector",
-        TLVParameterHeader(348),
+C1G2EPCMemorySelector = LLRPParamStruct("C1G2EPCMemorySelector", 348,
         EmbeddedBitStruct(
             Flag("EnableCRC"),
             Alias("C", "EnableCRC"),
@@ -440,8 +413,7 @@ C1G2EPCMemorySelector = Struct("C1G2EPCMemorySelector",
             Padding(5)))
 
 # 17.2.7.1.1
-TagReportContentSelector = Struct("TagReportContentSelector",
-        TLVParameterHeader(238),
+TagReportContentSelector = LLRPParamStruct("TagReportContentSelector", 238,
         EmbeddedBitStruct(
             Flag("EnableROSpecID"),
             Alias("R", "EnableROSpecID"),
@@ -469,8 +441,7 @@ TagReportContentSelector = Struct("TagReportContentSelector",
         )
 
 # 17.2.7.1
-ROReportSpec = Struct("ROReportSpec",
-        TLVParameterHeader(237),
+ROReportSpec = LLRPParamStruct("ROReportSpec", 237,
         Enum(UBInt8("ROReportTrigger"),
             Null = 0,
             UponNTagReportsOrEndOfAISpec = 1,
@@ -485,8 +456,7 @@ ROReportSpec = Struct("ROReportSpec",
         )
 
 # 17.2.4.1
-ROSpec = Struct("ROSpec",
-        TLVParameterHeader(177),
+ROSpec = LLRPParamStruct("ROSpec", 177,
         UBInt32("ROSpecID"),
         IntRange(UBInt8("Priority"), 0, 7),
         Enum(UBInt8("CurrentState"),
@@ -504,28 +474,24 @@ ROSpec = Struct("ROSpec",
         Optional(ROReportSpec))
 
 # 17.2.8.1
-LLRPStatus = Struct("LLRPStatus",
-        TLVParameterHeader(287),
+LLRPStatus = LLRPParamStruct("LLRPStatus", 287,
         StatusCode,
         UBInt16("ErrorDescriptionByteCount"),
         If(lambda ctx: ctx.ErrorDescriptionByteCount,
             String("ErrorDescription",
                 lambda ctx: ctx.ErrorDescriptionByteCount)),
-        Optional(Struct("FieldError",
-            TLVParameterHeader(288),
+        Optional(LLRPParamStruct("FieldError", 288,
             UBInt16("FieldNum"),
             UBInt16("ErrorCode"), # XXX Enum?
             )),
-        Optional(Struct("ParameterError",
-            TLVParameterHeader(289),
+        Optional(LLRPParamStruct("ParameterError", 289,
             UBInt16("ParameterType"),
             UBInt16("ErrorCode"), # XXX Enum?
             ))
         )
 
 # 17.3
-C1G2LLRPCapabilities = Struct("C1G2LLRPCapabilities",
-        TLVParameterHeader(327),
+C1G2LLRPCapabilities = LLRPParamStruct("C1G2LLRPCapabilities", 327,
         EmbeddedBitStruct(
             Flag("CanSupportBlockErase"),
             Flag("CanSupportBlockWrite"),
@@ -537,8 +503,7 @@ C1G2LLRPCapabilities = Struct("C1G2LLRPCapabilities",
         UBInt16("MaxNumSelectFiltersPerQuery"))
 
 # 17.3.1.3.1.1
-C1G2TargetTag = Struct("C1G2TargetTag",
-        TLVParameterHeader(339),
+C1G2TargetTag = LLRPParamStruct("C1G2TargetTag", 339,
         EmbeddedBitStruct(
             BitField("MemoryBank", 2),
             Alias("MB", "MemoryBank"),
@@ -552,8 +517,7 @@ C1G2TargetTag = Struct("C1G2TargetTag",
         MetaField("TagData", lambda ctx: ctx.DataBitCount / 8))
 
 # 17.3.1.3.2.1
-C1G2Read = Struct("C1G2Read",
-        TLVParameterHeader(341),
+C1G2Read = LLRPParamStruct("C1G2Read", 341,
         UBInt16("OpSpecID"),
         UBInt32("AccessPassword"),
         EmbeddedBitStruct(
@@ -564,8 +528,7 @@ C1G2Read = Struct("C1G2Read",
         UBInt16("WordCount"))
 
 # 17.3.1.3.2.2
-C1G2Write = Struct("C1G2Write",
-        TLVParameterHeader(342),
+C1G2Write = LLRPParamStruct("C1G2Write", 342,
         UBInt16("OpSpecID"),
         UBInt32("AccessPassword"),
         EmbeddedBitStruct(
@@ -577,14 +540,12 @@ C1G2Write = Struct("C1G2Write",
         MetaField("WriteData", lambda ctx: ctx.WriteDataWordCount * 2))
 
 # 17.3.1.3.2.3
-C1G2Kill = Struct("C1G2Kill",
-        TLVParameterHeader(343),
+C1G2Kill = LLRPParamStruct("C1G2Kill", 343,
         UBInt16("OpSpecID"),
         UBInt32("KillPassword"))
 
 # 17.3.1.3.2.4
-C1G2Recommission = Struct("C1G2Recommission",
-        TLVParameterHeader(357),
+C1G2Recommission = LLRPParamStruct("C1G2Recommission", 357,
         UBInt16("OpSpecID"),
         UBInt32("KillPassword"),
         EmbeddedBitStruct(
@@ -594,21 +555,18 @@ C1G2Recommission = Struct("C1G2Recommission",
             Flag("LSB")))
 
 # 17.3.1.3.2.5.1
-C1G2LockPayload = Struct("C1G2LockPayload",
-        TLVParameterHeader(345),
+C1G2LockPayload = LLRPParamStruct("C1G2LockPayload", 345,
         UBInt8("Privilege"), # XXX
         UBInt8("DataField"))
 
 # 17.3.1.3.2.5
-C1G2Lock = Struct("C1G2Lock",
-        TLVParameterHeader(344),
+C1G2Lock = LLRPParamStruct("C1G2Lock", 344,
         UBInt16("OpSpecID"),
         UBInt32("AccessPassword"),
         GreedyRange(C1G2LockPayload))
 
 # 17.3.1.3.2.6
-C1G2BlockErase = Struct("C1G2BlockErase",
-        TLVParameterHeader(346),
+C1G2BlockErase = LLRPParamStruct("C1G2BlockErase", 346,
         UBInt16("OpSpecID"),
         UBInt32("AccessPassword"),
         EmbeddedBitStruct(
@@ -619,8 +577,7 @@ C1G2BlockErase = Struct("C1G2BlockErase",
         UBInt16("WordCount"))
 
 # 17.3.1.3.2.7
-C1G2BlockWrite = Struct("C1G2BlockWrite",
-        TLVParameterHeader(347),
+C1G2BlockWrite = LLRPParamStruct("C1G2BlockWrite", 347,
         UBInt16("OpSpecID"),
         UBInt32("AccessPassword"),
         EmbeddedBitStruct(
@@ -632,8 +589,7 @@ C1G2BlockWrite = Struct("C1G2BlockWrite",
         MetaField("WriteData", lambda ctx: ctx.WriteDataWordCount * 2))
 
 # 17.3.1.3.2.8
-C1G2BlockPermalock = Struct("C1G2BlockPermalock",
-        TLVParameterHeader(358),
+C1G2BlockPermalock = LLRPParamStruct("C1G2BlockPermalock", 358,
         UBInt16("OpSpecID"),
         UBInt32("AccessPassword"),
         EmbeddedBitStruct(
@@ -645,8 +601,7 @@ C1G2BlockPermalock = Struct("C1G2BlockPermalock",
         MetaField("BlockMask", lambda ctx: ctx.WriteDataWordCount * 2))
 
 # 17.3.1.3.2.9
-C1G2BlockPermalockStatus = Struct("C1G2BlockPermalockStatus",
-        TLVParameterHeader(359),
+C1G2BlockPermalockStatus = LLRPParamStruct("C1G2BlockPermalockStatus", 359,
         UBInt16("OpSpecID"),
         UBInt32("AccessPassword"),
         EmbeddedBitStruct(
@@ -657,24 +612,22 @@ C1G2BlockPermalockStatus = Struct("C1G2BlockPermalockStatus",
         UBInt16("BlockRange"))
 
 # 17.3.1.3.1
-C1G2TagSpec = Struct("C1G2TagSpec",
-        TLVParameterHeader(338),
+C1G2TagSpec = LLRPParamStruct("C1G2TagSpec", 338,
         C1G2TargetTag,
         Optional(C1G2TargetTag))
 
 # 17.2.5.1.1
-AccessSpecStopTrigger = Struct("AccessSpecStopTrigger",
-        TLVParameterHeader(208),
+AccessSpecStopTrigger = LLRPParamStruct("AccessSpecStopTrigger", 208,
         Enum(UBInt8("AccessSpecStopTriggerType"),
             Null = 0,
             OperationCount = 1),
         UBInt16("OperationCountValue"))
 
 # 17.2.5.1.3
-ClientRequestOpSpec = Struct("ClientRequestOpSpec",
-        TLVParameterHeader(210),
+ClientRequestOpSpec = LLRPParamStruct("ClientRequestOpSpec", 210,
         UBInt16("OpSpecID"))
 
+# XXX make into LLRPParamStruct?
 OpSpec = Struct("OpSpec",
         Peek(Enum(UBInt16("TLVType"),
                 C1G2Read                 = 349,
@@ -704,21 +657,18 @@ OpSpec = Struct("OpSpec",
         )
 
 # 17.2.5.1.2
-AccessCommand = Struct("AccessCommand",
-        TLVParameterHeader(209),
+AccessCommand = LLRPParamStruct("AccessCommand", 209,
         C1G2TagSpec,
         OptionalGreedyRange(OpSpec),
         # XXX OptionalGreedyRange(CustomParameter)
         )
 
 # 17.2.6.1
-LLRPConfigurationStateValue = Struct("LLRPConfigurationStateValue",
-        TLVParameterHeader(217),
+LLRPConfigurationStateValue = LLRPParamStruct("LLRPConfigurationStateValue", 217,
         UBInt32("LLRPConfigurationStateValue"))
 
 # 17.2.6.2
-Identification = Struct("Identification",
-        TLVParameterHeader(218),
+Identification = LLRPParamStruct("Identification", 218,
         Enum(UBInt8("IDType"),
             MACAddress = 0,
             EPC = 1),
@@ -726,8 +676,7 @@ Identification = Struct("Identification",
         MetaField("ReaderID", lambda ctx: ctx.ByteCount))
 
 # 17.2.6.3
-GPOWriteData = Struct("GPOWriteData",
-        TLVParameterHeader(219),
+GPOWriteData = LLRPParamStruct("GPOWriteData", 219,
         UBInt16("GPOPortNumber"),
         EmbeddedBitStruct(
             Flag("GPOData"),
@@ -735,99 +684,95 @@ GPOWriteData = Struct("GPOWriteData",
             Padding(7)))
 
 # 17.2.6.4
-KeepaliveSpec = Struct("KeepaliveSpec",
-        TLVParameterHeader(220),
+KeepaliveSpec = LLRPParamStruct("KeepaliveSpec", 220,
         Enum(UBInt8("KeepaliveTriggerType"),
             Null = 0,
             Periodic = 1),
         UBInt32("TimeInterval"))
 
 # 17.2.7.2
-AccessReportSpec = Struct("AccessReportSpec",
-        TLVParameterHeader(239),
+AccessReportSpec = LLRPParamStruct("AccessReportSpec", 239,
         Enum(UBInt8("AccessReportTrigger"),
             ROReport = 0,
             EndOfAccessSpec = 1))
 
 # 17.2.7.3.1
-EPCData = Struct("EPCData",
-        TLVParameterHeader(241),
+EPCData = LLRPParamStruct("EPCData", 241,
         UBInt16("EPCLengthBits"),
         MetaField("EPC", lambda ctx: ctx.EPCLengthBits / 8))
 
 # 17.2.7.3.2
-EPC96 = Struct("EPC96",
-        TVParameterHeader(13),
-        StaticField("EPC", 96/8))
+EPC96 = LLRPParamStruct("EPC96", 13,
+        StaticField("EPC", 96/8),
+        tv=True)
 
 # 17.2.7.3.3
-ROSpecID = Struct("ROSpecID",
-        TVParameterHeader(9),
-        UBInt32("ROSpecID"))
+ROSpecID = LLRPParamStruct("ROSpecID", 9,
+        UBInt32("ROSpecID"),
+        tv=True)
 
 # 17.2.7.3.4
-SpecIndex = Struct("SpecIndex",
-        TVParameterHeader(14),
-        UBInt16("SpecIndex"))
+SpecIndex = LLRPParamStruct("SpecIndex", 14,
+        UBInt16("SpecIndex"),
+        tv=True)
 
 # 17.2.7.3.5
-InventoryParameterSpecID = Struct("InventoryParameterSpecID",
-        TVParameterHeader(10),
-        UBInt16("InventoryParameterSpecID"))
+InventoryParameterSpecID = LLRPParamStruct("InventoryParameterSpecID", 10,
+        UBInt16("InventoryParameterSpecID"),
+        tv=True)
 
 # 17.2.7.3.6
-AntennaID = Struct("AntennaID",
-        TVParameterHeader(1),
-        UBInt16("AntennaID"))
+AntennaID = LLRPParamStruct("AntennaID", 1,
+        UBInt16("AntennaID"),
+        tv=True)
 
 # 17.2.7.3.7
-PeakRSSI = Struct("PeakRSSI",
-        TVParameterHeader(6),
-        SBInt8("PeakRSSI"))
+PeakRSSI = LLRPParamStruct("PeakRSSI", 6,
+        SBInt8("PeakRSSI"),
+        tv=True)
 
 # 17.2.7.3.8
-ChannelIndex = Struct("ChannelIndex",
-        TVParameterHeader(7),
-        UBInt16("ChannelIndex"))
+ChannelIndex = LLRPParamStruct("ChannelIndex", 7,
+        UBInt16("ChannelIndex"),
+        tv=True)
 
 # 17.2.7.3.9
-FirstSeenTimestampUTC = Struct("FirstSeenTimestampUTC",
-        TVParameterHeader(2),
-        UBInt64("Microseconds"))
+FirstSeenTimestampUTC = LLRPParamStruct("FirstSeenTimestampUTC", 2,
+        UBInt64("Microseconds"),
+        tv=True)
 
 # 17.2.7.3.10
-FirstSeenTimestampUptime = Struct("FirstSeenTimestampUptime",
-        TVParameterHeader(3),
-        UBInt64("Microseconds"))
+FirstSeenTimestampUptime = LLRPParamStruct("FirstSeenTimestampUptime", 3,
+        UBInt64("Microseconds"),
+        tv=True)
 
 # 17.2.7.3.11
-LastSeenTimestampUTC = Struct("LastSeenTimestampUTC",
-        TVParameterHeader(4),
-        UBInt64("Microseconds"))
+LastSeenTimestampUTC = LLRPParamStruct("LastSeenTimestampUTC", 4,
+        UBInt64("Microseconds"),
+        tv=True)
 
 # 17.2.7.3.12
-LastSeenTimestampUptime = Struct("LastSeenTimestampUptime",
-        TVParameterHeader(5),
-        UBInt64("Microseconds"))
+LastSeenTimestampUptime = LLRPParamStruct("LastSeenTimestampUptime", 5,
+        UBInt64("Microseconds"),
+        tv=True)
 
 # 17.2.7.3.13
-TagSeenCount = Struct("TagSeenCount",
-        TVParameterHeader(8),
-        UBInt16("TagCount"))
+TagSeenCount = LLRPParamStruct("TagSeenCount", 8,
+        UBInt16("TagCount"),
+        tv=True)
 
 # 17.2.7.3.14
-ClientRequestOpSpecResult = Struct("ClientRequestOpSpecResult",
-        TVParameterHeader(15),
-        UBInt16("OpSpecID"))
+ClientRequestOpSpecResult = LLRPParamStruct("ClientRequestOpSpecResult", 15,
+        UBInt16("OpSpecID"),
+        tv=True)
 
 # 17.2.7.3.15
-AccessSpecID = Struct("AccessSpecID",
-        TVParameterHeader(16),
-        UBInt32("AccessSpecID"))
+AccessSpecID = LLRPParamStruct("AccessSpecID", 16,
+        UBInt32("AccessSpecID"),
+        tv=True)
 
 # 17.2.7.4.1
-FrequencyRSSILevelEntry = Struct("FrequencyRSSILevelEntry",
-        TLVParameterHeader(243),
+FrequencyRSSILevelEntry = LLRPParamStruct("FrequencyRSSILevelEntry", 243,
         UBInt32("Frequency"),
         UBInt32("Bandwidth"),
         SBInt8("AverageRSSI"),
@@ -835,8 +780,7 @@ FrequencyRSSILevelEntry = Struct("FrequencyRSSILevelEntry",
         TimestampOrUptime)
 
 # 17.2.7.4
-RFSurveyReportData = Struct("RFSurveyReportData",
-        TLVParameterHeader(242),
+RFSurveyReportData = LLRPParamStruct("RFSurveyReportData", 242,
         Optional(ROSpecID),
         Optional(SpecIndex),
         GreedyRange(FrequencyRSSILevelEntry),
@@ -844,8 +788,7 @@ RFSurveyReportData = Struct("RFSurveyReportData",
         )
 
 # 17.2.7.5.1
-EventNotificationState = Struct("EventNotificationState",
-        TLVParameterHeader(245),
+EventNotificationState = LLRPParamStruct("EventNotificationState", 245,
         Enum(UBInt16("EventType"),
             HoppedToNextChannel = 0,
             GPIEvent = 1,
@@ -863,19 +806,17 @@ EventNotificationState = Struct("EventNotificationState",
             Padding(7)))
 
 # 17.2.7.5
-ReaderEventNotificationSpec = Struct("ReaderEventNotificationSpec",
-        TLVParameterHeader(244),
+ReaderEventNotificationSpec = LLRPParamStruct("ReaderEventNotificationSpec",
+        244,
         GreedyRange(EventNotificationState))
 
 # 17.2.7.6.1
-HoppingEvent = Struct("HoppingEvent",
-        TLVParameterHeader(247),
+HoppingEvent = LLRPParamStruct("HoppingEvent", 247,
         UBInt16("HopTableID"),
         UBInt16("NextChannelIndex"))
 
 # 17.2.7.6.2
-GPIEvent = Struct("GPIEvent",
-        TLVParameterHeader(248),
+GPIEvent = LLRPParamStruct("GPIEvent", 248,
         UBInt16("GPIPortNumber"),
         EmbeddedBitStruct(
             Flag("GPIEvent"),
@@ -883,8 +824,7 @@ GPIEvent = Struct("GPIEvent",
             Padding(7)))
 
 # 17.2.7.6.3
-ROSpecEvent = Struct("ROSpecEvent",
-        TLVParameterHeader(249),
+ROSpecEvent = LLRPParamStruct("ROSpecEvent", 249,
         Enum(UBInt8("EventType"),
             StartOfROSpec = 0,
             EndOfROSpec = 1,
@@ -893,22 +833,19 @@ ROSpecEvent = Struct("ROSpecEvent",
         UBInt32("PreemptingROSpecID"))
 
 # 17.2.7.6.4
-ReportBufferLevelWarningEvent = Struct("ReportBufferLevelWarningEvent",
-        TLVParameterHeader(250),
+ReportBufferLevelWarningEvent = LLRPParamStruct("ReportBufferLevelWarningEvent", 250,
         IntRange(UBInt8("ReportBufferPercentageFull"), 0, 100))
 
 # 17.2.7.6.5
-ReportBufferOverflowErrorEvent = Struct("ReportBufferOverflowErrorEvent",
-        TLVParameterHeader(251))
+ReportBufferOverflowErrorEvent = LLRPParamStruct("ReportBufferOverflowErrorEvent", 251)
 
 # 17.2.7.6.6.1
-OpSpecID = Struct("OpSpecID",
-        TVParameterHeader(17),
-        UBInt16("OpSpecID"))
+OpSpecID = LLRPParamStruct("OpSpecID", 17,
+        UBInt16("OpSpecID"),
+        tv=True)
 
 # 17.2.7.6.6
-ReaderExceptionEvent = Struct("ReaderExceptionEvent",
-        TLVParameterHeader(252),
+ReaderExceptionEvent = LLRPParamStruct("ReaderExceptionEvent", 252,
         UBInt16("MessageStringByteCount"),
         MetaField("Message", lambda ctx: ctx.MessageStringByteCount),
         Optional(ROSpecID),
@@ -921,8 +858,7 @@ ReaderExceptionEvent = Struct("ReaderExceptionEvent",
         )
 
 # 17.2.7.6.7
-RFSurveyEvent = Struct("RFSurveyEvent",
-        TLVParameterHeader(253),
+RFSurveyEvent = LLRPParamStruct("RFSurveyEvent", 253,
         Enum(UBInt8("EventType"),
             StartOfRFSurvey = 0,
             EndOfRFSurvey = 1),
@@ -930,14 +866,13 @@ RFSurveyEvent = Struct("RFSurveyEvent",
         UBInt16("SpecIndex"))
 
 # 17.3.1.5.6
-C1G2SingulationDetails = Struct("C1G2SingulationDetails",
-        TVParameterHeader(18),
+C1G2SingulationDetails = LLRPParamStruct("C1G2SingulationDetails", 18,
         UBInt16("NumCollisionSlots"),
-        UBInt16("NumEmptySlots"))
+        UBInt16("NumEmptySlots"),
+        tv=True)
 
 # 17.2.7.6.8
-AISpecEvent = Struct("AISpecEvent",
-        TLVParameterHeader(254),
+AISpecEvent = LLRPParamStruct("AISpecEvent", 254,
         Enum(UBInt8("EventType"),
             EndOfAISpec = 0),
         UBInt32("ROSpecID"),
@@ -945,16 +880,14 @@ AISpecEvent = Struct("AISpecEvent",
         Optional(C1G2SingulationDetails))
 
 # 17.2.7.6.9
-AntennaEvent = Struct("AntennaEvent",
-        TLVParameterHeader(255),
+AntennaEvent = LLRPParamStruct("AntennaEvent", 255,
         Enum(UBInt8("EventType"),
             AntennaDisconnected = 0,
             AntennaConnected = 1),
         UBInt16("AntennaID"))
 
 # 17.2.7.6.10
-ConnectionAttemptEvent = Struct("ConnectionAttemptEvent",
-        TLVParameterHeader(256),
+ConnectionAttemptEvent = LLRPParamStruct("ConnectionAttemptEvent", 256,
         Enum(UBInt16("Status"),
             Success = 0,
             Failed_ReaderConnectionAlreadyExists = 1,
@@ -963,18 +896,15 @@ ConnectionAttemptEvent = Struct("ConnectionAttemptEvent",
             AnotherConnectionAttempted = 4))
 
 # 17.2.7.6.11
-ConnectionCloseEvent = Struct("ConnectionCloseEvent",
-        TLVParameterHeader(257))
+ConnectionCloseEvent = LLRPParamStruct("ConnectionCloseEvent", 257)
 
 # 17.2.7.6.12
-SpecLoopEvent = Struct("SpecLoopEvent",
-        TLVParameterHeader(356),
+SpecLoopEvent = LLRPParamStruct("SpecLoopEvent", 356,
         UBInt32("ROSpecID"),
         UBInt32("LoopCount"))
 
 # 17.2.7.6
-ReaderEventNotificationData = Struct("ReaderEventNotificationData",
-        TLVParameterHeader(246),
+ReaderEventNotificationData = LLRPParamStruct("ReaderEventNotificationData", 246,
         TimestampOrUptime,
         Optional(HoppingEvent),
         Optional(GPIEvent),
@@ -992,8 +922,7 @@ ReaderEventNotificationData = Struct("ReaderEventNotificationData",
         )
 
 # 17.3.1.5.7.1
-C1G2ReadOpSpecResult = Struct("C1G2ReadOpSpecResult",
-        TLVParameterHeader(349),
+C1G2ReadOpSpecResult = LLRPParamStruct("C1G2ReadOpSpecResult", 349,
         Enum(UBInt8("Result"),
             Success = 0,
             NonSpecificTagError = 1,
@@ -1007,8 +936,7 @@ C1G2ReadOpSpecResult = Struct("C1G2ReadOpSpecResult",
         MetaField("ReadData", lambda ctx: ctx.ReadDataWordCount * 2))
 
 # 17.3.1.5.7.2
-C1G2WriteOpSpecResult = Struct("C1G2WriteOpSpecResult",
-        TLVParameterHeader(350),
+C1G2WriteOpSpecResult = LLRPParamStruct("C1G2WriteOpSpecResult", 350,
         Enum(UBInt8("Result"),
             Success = 0,
             TagMemoryOverrunError = 1,
@@ -1022,8 +950,7 @@ C1G2WriteOpSpecResult = Struct("C1G2WriteOpSpecResult",
         UBInt16("NumWordsWritten"))
 
 # 17.3.1.5.7.3
-C1G2KillOpSpecResult = Struct("C1G2KillOpSpecResult",
-        TLVParameterHeader(351),
+C1G2KillOpSpecResult = LLRPParamStruct("C1G2KillOpSpecResult", 351,
         Enum(UBInt8("Result"),
             Success = 0,
             ZeroKillPasswordError = 1,
@@ -1035,8 +962,7 @@ C1G2KillOpSpecResult = Struct("C1G2KillOpSpecResult",
         UBInt16("OpSpecID"))
 
 # 17.3.1.5.7.4
-C1G2RecommissionOpSpecResult = Struct("C1G2RecommissionOpSpecResult",
-        TLVParameterHeader(360),
+C1G2RecommissionOpSpecResult = LLRPParamStruct("C1G2RecommissionOpSpecResult", 360,
         Enum(UBInt8("Result"),
             Success = 0,
             InsufficientPower = 1,
@@ -1049,8 +975,7 @@ C1G2RecommissionOpSpecResult = Struct("C1G2RecommissionOpSpecResult",
         UBInt16("OpSpecID"))
 
 # 17.3.1.5.7.5
-C1G2LockOpSpecResult = Struct("C1G2LockOpSpecResult",
-        TLVParameterHeader(360),
+C1G2LockOpSpecResult = LLRPParamStruct("C1G2LockOpSpecResult", 360,
         Enum(UBInt8("Result"),
             Success = 0,
             ZeroKillPasswordError = 1,
@@ -1062,8 +987,7 @@ C1G2LockOpSpecResult = Struct("C1G2LockOpSpecResult",
         UBInt16("OpSpecID"))
 
 # 17.3.1.5.7.6
-C1G2BlockEraseOpSpecResult = Struct("C1G2BlockEraseOpSpecResult",
-        TLVParameterHeader(353),
+C1G2BlockEraseOpSpecResult = LLRPParamStruct("C1G2BlockEraseOpSpecResult", 353,
         Enum(UBInt8("Result"),
             Success = 0,
             TagMemoryOverrunError = 1,
@@ -1076,8 +1000,7 @@ C1G2BlockEraseOpSpecResult = Struct("C1G2BlockEraseOpSpecResult",
         UBInt16("OpSpecID"))
 
 # 17.3.1.5.7.7
-C1G2BlockWriteOpSpecResult = Struct("C1G2BlockWriteOpSpecResult",
-        TLVParameterHeader(354),
+C1G2BlockWriteOpSpecResult = LLRPParamStruct("C1G2BlockWriteOpSpecResult", 354,
         Enum(UBInt8("Result"),
             Success = 0,
             TagMemoryOverrunError = 1,
@@ -1091,8 +1014,7 @@ C1G2BlockWriteOpSpecResult = Struct("C1G2BlockWriteOpSpecResult",
         UBInt16("NumWordsWritten"))
 
 # 17.3.1.5.7.8
-C1G2BlockPermalockOpSpecResult = Struct("C1G2BlockPermalockOpSpecResult",
-        TLVParameterHeader(361),
+C1G2BlockPermalockOpSpecResult = LLRPParamStruct("C1G2BlockPermalockOpSpecResult", 361,
         Enum(UBInt8("Result"),
             Success = 0,
             InsufficientPower = 1,
@@ -1105,8 +1027,7 @@ C1G2BlockPermalockOpSpecResult = Struct("C1G2BlockPermalockOpSpecResult",
 
 # 17.3.1.5.7.9
 C1G2BlockPermalockStatusOpSpecResult = \
-    Struct("C1G2BlockPermalockStatusOpSpecResult",
-        TLVParameterHeader(362),
+    LLRPParamStruct("C1G2BlockPermalockStatusOpSpecResult", 362,
         Enum(UBInt8("Result"),
             Success = 0,
             NonSpecificTagError = 1,
@@ -1118,6 +1039,7 @@ C1G2BlockPermalockStatusOpSpecResult = \
         UBInt16("StatusWordCount"),
         MetaField("PermalockStatus", lambda ctx: ctx.StatusWordCount * 2))
 
+# XXX write as LLRPParamStruct?
 OpSpecResult = Struct("OpSpecResult",
         Peek(Enum(UBInt16("TLVType"),
                 C1G2ReadOpSpecResult                 = 349,
@@ -1148,16 +1070,14 @@ OpSpecResult = Struct("OpSpecResult",
         )
 
 # 17.2.5.1.3.1
-ClientRequestResponse = Struct("ClientRequestResponse",
-        TLVParameterHeader(211),
+ClientRequestResponse = LLRPParamStruct("ClientRequestResponse", 211,
         UBInt32("AccessSpecID"),
         Peek(UBInt8("EPCType")),
         IfThenElse("EPC", lambda ctx: ctx.EPCType == 0x8d, EPC96, EPCData),
         OpSpec)
 
 # 17.2.7.3
-TagReportData = Struct("TagReportData",
-        TLVParameterHeader(240),
+TagReportData = LLRPParamStruct("TagReportData", 240,
         Peek(UBInt8("EPCType")),
         IfThenElse("EPC", lambda ctx: ctx.EPCType == 0x8d, EPC96, EPCData),
         Optional(ROSpecID),
@@ -1176,8 +1096,7 @@ TagReportData = Struct("TagReportData",
         OptionalGreedyRange(OpSpecResult))
 
 # 17.2.5.1
-AccessSpec = Struct("AccessSpec",
-        TLVParameterHeader(207),
+AccessSpec = LLRPParamStruct("AccessSpec", 207,
         UBInt32("AccessSpecID"),
         UBInt16("AntennaID"),
         AirProtocol,

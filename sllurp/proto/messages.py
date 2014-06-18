@@ -5,7 +5,7 @@ from construct import *
 from .common import MessageHeader, DecodingError, EncodingError
 from . import params
 
-# mapping of message types to the corresponding message decoders
+# mapping of message types to the corresponding decoders
 decoderClasses = {}
 
 # mapping of message names to their corresponding encoders

@@ -36,12 +36,14 @@ def TLVParameterHeader (paramType=None):
             UBInt16("Length"))            # XXX dynamically compute?
 
 # 17.2.1.2
-def TVParameterHeader (paramType):
-    assert paramType > 0
-    assert paramType < 128
+def TVParameterHeader (paramType=None):
+    if paramType:
+        assert paramType > 0
+        assert paramType < 128
     return BitStruct("TVParameterHeader",
             Const(Bit("TV"), 1),
-            Const(BitField("Type", 7), paramType))
+            paramType and Const(BitField("Type", 7), paramType) \
+                      or        BitField("Type", 7))
 
 # 15.2.1
 StatusCode = Enum(UBInt16("StatusCode"),
