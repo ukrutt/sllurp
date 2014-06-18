@@ -1171,12 +1171,7 @@ TagReportData = Struct("TagReportData",
         Optional(LastSeenTimestampUTC),
         Optional(LastSeenTimestampUptime),
         Optional(TagSeenCount),
-        OptionalGreedyRange(Struct("AirProtocolTagData",
-                # C1G2PC,
-                # C1G2XPCW1,
-                # C1G2XPCW2, or
-                # C1G2CRC
-                )),
+        OptionalGreedyRange(UBInt16("AirProtocolTagData")),
         Optional(AccessSpecID),
         OptionalGreedyRange(OpSpecResult))
 
