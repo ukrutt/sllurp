@@ -1,7 +1,10 @@
 """Encoder for message constructs"""
 
+import logging
 from construct import Container
 from . import common, messages, params
+
+logger = logging.getLogger('sllurp')
 
 outgoingMessageID = 0
 
