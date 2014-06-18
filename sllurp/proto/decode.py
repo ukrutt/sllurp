@@ -10,7 +10,7 @@ HDRFMT_LEN = struct.calcsize(HDRFMT)
 
 logger = logging.getLogger('sllurp')
 
-def __getType (msghdr):
+def getTypeAndLength (msghdr):
     assert len(msghdr) == HDRFMT_LEN
     ty, length, _ = struct.unpack(HDRFMT, msghdr)
     ty &= 0x3ff # lower 10 bits
@@ -22,7 +22,7 @@ def decodeMessage (msgbytes):
         raise DecodingError('message is too short (incomplete header)')
 
     # inspect the message header
-    m_ty, m_len = __getType(msgbytes[:HDRFMT_LEN])
+    m_ty, m_len = getTypeAndLength(msgbytes[:HDRFMT_LEN])
 
     if len(msgbytes) < m_len:
         raise DecodingError('message is too short (wanted {} bytes, ' \
@@ -32,4 +32,4 @@ def decodeMessage (msgbytes):
     logger.debug('data: {}'.format(msgbytes.encode('hex')))
     logger.debug('decoder: {}'.format(decoder))
 
-    return decoder.parse(msgbytes)
+    return decoder.parse(msgbytes), decoder.name

@@ -231,9 +231,14 @@ class TestDecodeGetReaderCapabilitiesResponse (unittest.TestCase):
         self.assertTrue(s)
 
     def test_parse_capabilities_response (self):
-        msg = decode.decodeMessage(self.getCapsResponse)
+        "Parse and spot-test GET_READER_CAPABILITIES_RESPONSE"
+        msg, msgname = decode.decodeMessage(self.getCapsResponse)
+        self.assertEqual(msgname, 'GET_READER_CAPABILITIES_RESPONSE')
         self.assertEqual(msg.Type, 11)
-        self.assertTrue(msg)
+        uhf = msg.RegulatoryCapabilities.UHFBandCapabilities
+        self.assertIn(908750,
+                uhf.FrequencyInformation.FrequencyHopTable[0].Frequency)
+        self.assertEqual(msg.C1G2LLRPCapabilities.CanSupportBlockWrite, True)
 
 class TestEncoding (unittest.TestCase):
     def test_encoder (self):
