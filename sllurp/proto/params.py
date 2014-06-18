@@ -11,6 +11,11 @@ from .common import TLVParameterHeader, TVParameterHeader, IntRange, \
 
 Tests = {}
 
+# 17.2.2
+TimestampOrUptime = Struct("TimestampOrUptime",
+        TLVParameterHeader(),
+        UBInt64("Microseconds"))
+
 # 17.2.2.1
 UTCTimestamp = Struct("UTCTimestamp",
         TLVParameterHeader(128),
@@ -827,10 +832,7 @@ FrequencyRSSILevelEntry = Struct("FrequencyRSSILevelEntry",
         UBInt32("Bandwidth"),
         SBInt8("AverageRSSI"),
         SBInt8("PeakRSSI"),
-        Union("Timestamp",
-            UTCTimestamp,
-            UTCTimestamp,
-            Uptime))
+        TimestampOrUptime)
 
 # 17.2.7.4
 RFSurveyReportData = Struct("RFSurveyReportData",
@@ -973,10 +975,7 @@ SpecLoopEvent = Struct("SpecLoopEvent",
 # 17.2.7.6
 ReaderEventNotificationData = Struct("ReaderEventNotificationData",
         TLVParameterHeader(246),
-        Union("Timestamp",
-            UTCTimestamp,
-            UTCTimestamp,
-            Uptime),
+        TimestampOrUptime,
         Optional(HoppingEvent),
         Optional(GPIEvent),
         Optional(ROSpecEvent),

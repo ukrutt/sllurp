@@ -23,14 +23,16 @@ def MessageHeader (msgType):
             UBInt32("ID"))
 
 # 17.2.1.1
-def TLVParameterHeader (paramType):
-    assert paramType > 127
-    assert paramType < 1024
+def TLVParameterHeader (paramType=None):
+    if paramType:
+        assert paramType > 127
+        assert paramType < 1024
     return Struct("TLVParameterHeader",
             EmbeddedBitStruct(
                 Const(Bit("TV"), 0),
                 Padding(5),
-                Const(BitField("Type", 10), paramType)),
+                paramType and Const(BitField("Type", 10), paramType) \
+                          or        BitField("Type", 10)),
             UBInt16("Length"))            # XXX dynamically compute?
 
 # 17.2.1.2
