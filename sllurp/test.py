@@ -245,5 +245,17 @@ class TestEncoding (unittest.TestCase):
         msg = encode.encodeMessage('GET_SUPPORTED_VERSION')
         self.assertEqual(msg.encode('hex'), '042e0000000a00000000')
 
+class TestMessageTypes (unittest.TestCase):
+    def isMsg (self, fn):
+        return isinstance(getattr(messages, fn), messages.LLRPMessageStruct)
+    def allMessages (self):
+        return [getattr(messages, m) for m in filter(self.isMsg, dir(messages))]
+    def test_all_have_types (self):
+        for m in self.allMessages():
+            self.assertIsNotNone(m.type)
+    def test_all_types_unique (self):
+        types = [m.type for m in self.allMessages()]
+        self.assertEqual(len(set(types)), len(types))
+
 if __name__ == '__main__':
     unittest.main()
