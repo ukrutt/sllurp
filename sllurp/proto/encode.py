@@ -20,3 +20,7 @@ def encodeMessage (name, msgdict={}):
     c.update(msgdict)
     outgoingMessageID += 1
     return encoder.build(c)
+
+def encode_add_rospec ():
+    rospec = encodeParameter('ROSpec')
+    return encodeMessage('ADD_ROSPEC', {})
