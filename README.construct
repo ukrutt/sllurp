@@ -1,0 +1,10 @@
+construct is a declarative parser/builder that is useful for parsing and
+generating LLRP protocol messages.
+
+some tests to run on the construct implementation of LLRP:
+* every param has a header
+* every param has a unique type
+* no unexpected gaps in param type integer space
+
+eventually?
+* provide a test string next to each construct
