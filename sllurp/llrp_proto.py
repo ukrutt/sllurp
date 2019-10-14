@@ -4078,7 +4078,7 @@ for msgname, msgstruct in iteritems(Message_struct):
         ty = msgstruct['type']
     except KeyError:
         logging.debug('Pseudo-warning: Message_struct type {} '
-                      'lacks "type" field'.format(m))
+                      'lacks "type" field'.format(msgname))
         continue
 
     try:
