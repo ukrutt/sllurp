@@ -4063,7 +4063,7 @@ class LLRPROSpec(dict):
 
 
 class LLRPMessageDict(dict):
-    def __repr__(self):
+    def __str__(self):
         return llrp_data2xml(self)
 
 
